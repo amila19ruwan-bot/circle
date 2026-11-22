@@ -19,17 +19,21 @@ The publishable key (`sb_publishable_...`) is already inside `index.html`. Never
 ## Files
 - `index.html`: the whole app.
 - `manifest.webmanifest`: PWA manifest.
-- `sw.js`: service worker (network first, cache fallback). Bump `CACHE` (now `circle-v3`) when you want phones to drop old files.
+- `sw.js`: service worker (network first, cache fallback). Bump `CACHE` (now `circle-v5`) when you want phones to drop old files.
 - `icon.svg`: app icon.
 - `migration-2.sql`: likes, comments, photos, delete, profile edit (run once).
 - `migration-3.sql`: profile photo column + makes the photo bucket public (run once).
+- `migration-4.sql`: cover photo + intro fields (lives in, works at, studied at, website) on profiles (run once). The app still works without it; cover and intro fields just cannot be saved until it is run.
 
 ## Features
 - Sign up, log in, log out, forgot-password email and new-password screen.
 - Home feed (all posts, newest first, latest 50) with a post box: text and/or a photo from the gallery (shrunk to 1280 px, stored in Storage bucket `post-images`).
 - Each post: avatar ring, name, time, Like (thumbs up), Comment (open/close, delete own), Share (phone share sheet or copy link), Save (kept on this phone only, `localStorage`), delete own post (••• menu).
-- Tap any avatar or name to open that person's profile (photo, bio, friend status/button, their posts).
-- Me tab: change profile photo (camera badge), name, bio; Saved posts; own posts; log out.
+- Back button: the app keeps its own history (`history.pushState` + `popstate` in `show()/navTo()`), so the phone Back button goes to the previous screen instead of leaving the app.
+- Profile page (own and others), styled like the owner's mockup: framed cover photo, arched card with big avatar, name (emoji such as a flag can be typed in the name; blue tick if in `VERIFIED`), bio shown as a tagline, three stat cards, Edit profile / Share profile (or friend) buttons, Intro card, Friends grid (own), Posts / Photos / Videos tabs. Posts tab is a 3-column grid; tap a tile to open the post (`post` view), Photos tiles open full screen. Videos is a placeholder.
+- Edit profile is its own screen (name, bio, lives in, works at, studied at, website).
+- Tap any avatar or name to open that person's profile.
+- Me tab: own profile page; change profile photo and cover with the camera buttons; Saved posts; log out.
 - Friends tab: requests (Confirm / Delete), your friends, people you may know (Add friend), requests you sent.
 - Header: search people by name, bell with count of incoming friend requests, own avatar.
 - Light theme only (dark mode was removed on purpose; the owner does not want black).
