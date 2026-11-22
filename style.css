@@ -772,3 +772,6 @@ header{padding-bottom:38px}
 .chat-top{padding-bottom:34px;margin-bottom:-12px}
 header .hwave{opacity:.5}
 #app[data-view=home] main,#app[data-view=friends] main,#app[data-view=me] main{margin-top:-14px}
+
+/* v16: profile name was hidden behind the avatar (card padding override) */
+.card.pinfo{padding:66px 14px 16px}
