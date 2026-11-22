@@ -4,14 +4,13 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <meta name="theme-color" content="#2457D6">
-<meta name="color-scheme" content="light dark">
+<meta name="color-scheme" content="light">
 <title>Circle</title>
 <link rel="manifest" href="manifest.webmanifest">
 <link rel="icon" href="icon.svg">
 <link rel="apple-touch-icon" href="icon.svg">
 <style>
-:root{--blue:#2457D6;--blue2:#5B8CFF;--ink:#1B1F27;--mute:#667085;--line:#E6E9EF;--bg:#EEF1F7;--soft:#EEF1F6;--card:#fff;--tint:#E6EDFC;--tinttx:#1A45B0;--shadow:0 1px 2px rgba(16,24,40,.06),0 4px 14px rgba(16,24,40,.05)}
-@media (prefers-color-scheme:dark){:root{--ink:#EDF0F5;--mute:#98A2B3;--line:#2A303B;--bg:#0E1116;--soft:#262C37;--card:#171B22;--tint:#1E2B4A;--tinttx:#A9C2FF;--shadow:0 1px 2px rgba(0,0,0,.4)}}
+:root{--blue:#2457D6;--blue2:#5B8CFF;--ink:#1F2A44;--mute:#667085;--line:#E6E9EF;--bg:#EEF1F7;--soft:#EEF1F6;--card:#fff;--tint:#E6EDFC;--tinttx:#1A45B0;--shadow:0 1px 2px rgba(16,24,40,.06),0 4px 14px rgba(16,24,40,.05)}
 *{box-sizing:border-box;-webkit-tap-highlight-color:transparent}
 html,body{height:100%;margin:0}
 body{font:400 15px/1.45 system-ui,-apple-system,"Segoe UI",Roboto,sans-serif;background:var(--bg);color:var(--ink);padding-top:env(safe-area-inset-top)}
@@ -49,7 +48,6 @@ nav{display:flex;background:var(--card);border-top:1px solid var(--line);padding
 nav button{flex:1;height:64px;border:0;background:none;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:3px;font-size:11px;font-weight:700;color:var(--mute);position:relative}
 nav button.on{color:var(--blue)}
 nav button.on::before{content:"";position:absolute;top:0;width:32px;height:3px;border-radius:0 0 3px 3px;background:var(--blue)}
-@media (prefers-color-scheme:dark){nav button.on{color:var(--blue2)}nav button.on::before{background:var(--blue2)}}
 nav svg{width:25px;height:25px;fill:none;stroke:currentColor;stroke-width:2;stroke-linecap:round;stroke-linejoin:round}
 body:has(#auth:not(.hidden)),body:has(#reset:not(.hidden)){background:linear-gradient(160deg,var(--blue),var(--blue2) 45%,var(--bg) 45%)}
 #auth,#reset{width:calc(100% - 32px);max-width:420px;margin:40px auto 0;padding:28px 22px;display:flex;flex-direction:column;gap:12px;background:var(--card);border-radius:24px;box-shadow:0 10px 40px rgba(16,24,40,.2)}
@@ -58,7 +56,6 @@ body:has(#auth:not(.hidden)),body:has(#reset:not(.hidden)){background:linear-gra
 #msg{color:#B42318;min-height:20px;font-size:14px}
 #msg.ok{color:#18794E}
 .link{background:none;border:0;color:var(--blue);font-weight:700;min-height:44px}
-@media (prefers-color-scheme:dark){.link{color:var(--blue2)}}
 .post-img{display:block;width:100%;max-height:460px;object-fit:cover;border-radius:14px;margin-top:12px;background:var(--soft)}
 .acts{display:flex;gap:4px;margin-top:10px;border-top:1px solid var(--line);padding-top:4px}
 .act{flex:1;min-height:44px;border:0;background:none;display:flex;align-items:center;justify-content:center;gap:6px;font-weight:700;font-size:14px;color:var(--mute);border-radius:12px}
@@ -77,6 +74,14 @@ body:has(#auth:not(.hidden)),body:has(#reset:not(.hidden)){background:linear-gra
 .prev img{width:100%;max-height:260px;object-fit:cover;border-radius:14px;display:block}
 .prev button{position:absolute;top:8px;right:8px;width:44px;height:44px;border-radius:50%;border:0;background:rgba(0,0,0,.6);color:#fff;font-size:18px}
 label.fld{display:block;font-size:13px;font-weight:600;color:var(--mute);margin:12px 0 4px}
+.av.xl{width:96px;height:96px;font-size:34px}
+img.av{object-fit:cover;background:var(--soft)}
+.lnk{cursor:pointer}
+.avwrap{position:relative;flex:none}
+.cam{position:absolute;right:-2px;bottom:-2px;width:34px;height:34px;border-radius:50%;border:3px solid var(--card);background:var(--blue);color:#fff;display:flex;align-items:center;justify-content:center;font-size:15px;padding:0}
+.back{background:none;border:0;color:var(--blue);font-weight:700;min-height:44px;padding:0 4px;text-align:left;align-self:flex-start}
+.pf{display:flex;flex-direction:column;align-items:center;text-align:center;gap:4px}
+.pf .nm{font-size:22px;font-weight:800;margin-top:8px}
 :focus-visible{outline:3px solid #8FB0FF;outline-offset:2px}
 </style>
 </head>
@@ -124,11 +129,14 @@ let me = null, tab = "home", signup = false;
 const $ = id => document.getElementById(id);
 const esc = s => String(s ?? "").replace(/[&<>"']/g, c => ({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
 const COLORS = ["linear-gradient(135deg,#4F7CF0,#7FA6FF)","linear-gradient(135deg,#F2784B,#FFA67A)","linear-gradient(135deg,#2FA36B,#6FD4A0)","linear-gradient(135deg,#8B5CF6,#B794FF)","linear-gradient(135deg,#E5A91A,#FFD369)","linear-gradient(135deg,#E0457B,#FF86AC)"];
-function avatar(name, big){
+function avatar(name, big, url, uid){
   const n = name || "?";
+  const cls = "av " + (big === "xl" ? "xl" : big ? "lg" : "") + (uid ? " lnk" : "");
+  const click = uid ? ` onclick="openProfile('${uid}')"` : "";
+  if (url) return `<img class="${cls}" src="${esc(url)}" alt="${esc(n)}"${click}>`;
   let h = 0; for (const ch of n) h = (h * 31 + ch.charCodeAt(0)) % 997;
   const ini = n.trim().split(/\s+/).slice(0,2).map(w => w[0]).join("").toUpperCase();
-  return `<div class="av ${big ? "lg" : ""}" style="background:${COLORS[h % COLORS.length]}">${esc(ini)}</div>`;
+  return `<div class="${cls}" style="background:${COLORS[h % COLORS.length]}"${click}>${esc(ini)}</div>`;
 }
 function ago(t){
   const s = (Date.now() - new Date(t)) / 1000;
@@ -184,7 +192,7 @@ async function logout(){ await sb.auth.signOut(); location.reload(); }
 
 /* ---------- boot ---------- */
 async function boot(user){
-  const { data: p } = await sb.from("profiles").select("id,name,bio").eq("id", user.id).maybeSingle();
+  const { data: p } = await sb.from("profiles").select("id,name,bio,avatar_url").eq("id", user.id).maybeSingle();
   if (p){ me = p; }
   else {
     const name = (user.user_metadata && user.user_metadata.name) || user.email.split("@")[0];
@@ -196,12 +204,24 @@ async function boot(user){
   $("app").classList.remove("hidden");
   go("home");
 }
+let prevTab = "home";
 function go(t){
   tab = t;
   ["home","friends","me"].forEach(x => $("t-" + x).classList.toggle("on", x === t));
-  $("title").textContent = t === "home" ? "Circle" : t === "friends" ? "Friends" : "Me";
-  ({ home: renderHome, friends: renderFriends, me: renderMe })[t]();
+  $("title").textContent = t === "home" ? "Circle" : t === "friends" ? "Friends" : "My profile";
+  $("main").scrollTop = 0;
+  ({ home: renderHome, friends: renderFriends, me: () => renderProfile(me.id) })[t]();
 }
+function openProfile(id){
+  if (id === me.id) return go("me");
+  if (tab !== "profile") prevTab = tab;
+  tab = "profile"; viewId = id;
+  ["home","friends","me"].forEach(x => $("t-" + x).classList.remove("on"));
+  $("title").textContent = "Profile";
+  $("main").scrollTop = 0;
+  renderProfile(id);
+}
+let viewId = null;
 
 /* ---------- home ---------- */
 const ICON_HEART = `<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 21s-8-5.2-8-11a4.5 4.5 0 0 1 8-2.8A4.5 4.5 0 0 1 20 10c0 5.8-8 11-8 11z"/></svg>`;
@@ -211,10 +231,15 @@ let feed = [], openCm = new Set(), cmts = {}, pickedFile = null, previewUrl = nu
 async function renderHome(){
   pickedFile = null;
   $("main").innerHTML = `<div class="card"><textarea id="p-body" maxlength="1000" placeholder="What is on your mind?" aria-label="New post"></textarea><div id="prev"></div><input id="p-file" type="file" accept="image/*" class="hidden" onchange="pickPhoto(this)"><div class="btns"><button class="btn alt" onclick="$('p-file').click()">📷 Photo</button><button class="btn" id="p-go" onclick="addPost()">Post</button></div></div><div id="feed"><div class="empty">Loading…</div></div>`;
-  const { data, error } = await sb.from("posts")
-    .select("id,user_id,body,image_url,created_at,profiles!user_id(name),likes(user_id),comments(id)")
+  loadFeed(null);
+}
+async function loadFeed(userId){
+  let q = sb.from("posts")
+    .select("id,user_id,body,image_url,created_at,profiles!user_id(name,avatar_url),likes(user_id),comments(id)")
     .order("created_at", { ascending: false }).limit(50);
-  if (tab !== "home") return;
+  if (userId) q = q.eq("user_id", userId);
+  const { data, error } = await q;
+  if (!$("feed")) return;
   if (error) { $("feed").innerHTML = `<div class="empty">Could not load posts: ${esc(error.message)}</div>`; return; }
   feed = data; openCm = new Set(); cmts = {};
   drawFeed();
@@ -231,13 +256,13 @@ function postHtml(p){
   const name = p.profiles && p.profiles.name;
   const liked = p.likes.some(l => l.user_id === me.id);
   const count = cmts[p.id] ? cmts[p.id].length : p.comments.length;
-  let h = `<div class="card" id="post-${p.id}" ><div class="row">${avatar(name)}<div><div class="name">${esc(name)}</div><div class="meta">${ago(p.created_at)}</div></div>${p.user_id === me.id ? `<button class="del" onclick="delPost(${p.id})" aria-label="Delete post">Delete</button>` : ""}</div>`;
+  let h = `<div class="card" id="post-${p.id}" ><div class="row">${avatar(name, false, p.profiles && p.profiles.avatar_url, p.user_id)}<div><div class="name lnk" onclick="openProfile('${p.user_id}')">${esc(name)}</div><div class="meta">${ago(p.created_at)}</div></div>${p.user_id === me.id ? `<button class="del" onclick="delPost(${p.id})" aria-label="Delete post">Delete</button>` : ""}</div>`;
   if (p.body) h += `<p class="body">${esc(p.body)}</p>`;
   if (p.image_url) h += `<img class="post-img" src="${esc(p.image_url)}" alt="Photo" loading="lazy">`;
   h += `<div class="acts"><button class="act ${liked ? "on" : ""}" onclick="toggleLike(${p.id})" aria-label="Like">${ICON_HEART}${p.likes.length || ""}</button><button class="act" onclick="toggleCm(${p.id})" aria-label="Comments">${ICON_CHAT}${count || ""}</button></div>`;
   if (openCm.has(p.id)){
     const list = cmts[p.id];
-    h += list ? list.map(c => `<div class="cm">${avatar(c.profiles && c.profiles.name)}<div style="flex:1;min-width:0"><div class="bub"><div class="name">${esc(c.profiles && c.profiles.name)}</div>${esc(c.body)}</div><div class="meta" style="margin:2px 0 0 12px">${ago(c.created_at)}${c.user_id === me.id ? ` · <button class="link" style="min-height:32px;font-size:13px" onclick="delCm(${p.id},${c.id})">Delete</button>` : ""}</div></div></div>`).join("") : `<div class="meta" style="margin-top:10px">Loading…</div>`;
+    h += list ? list.map(c => `<div class="cm">${avatar(c.profiles && c.profiles.name, false, c.profiles && c.profiles.avatar_url, c.user_id)}<div style="flex:1;min-width:0"><div class="bub"><div class="name lnk" onclick="openProfile('${c.user_id}')">${esc(c.profiles && c.profiles.name)}</div>${esc(c.body)}</div><div class="meta" style="margin:2px 0 0 12px">${ago(c.created_at)}${c.user_id === me.id ? ` · <button class="link" style="min-height:32px;font-size:13px" onclick="delCm(${p.id},${c.id})">Delete</button>` : ""}</div></div></div>`).join("") : `<div class="meta" style="margin-top:10px">Loading…</div>`;
     h += `<div class="cm-form"><input id="c-${p.id}" maxlength="500" placeholder="Write a comment…" aria-label="Write a comment" onkeydown="if(event.key==='Enter')addCm(${p.id})"><button class="btn" onclick="addCm(${p.id})">Send</button></div>`;
   }
   return h + `</div>`;
@@ -258,7 +283,7 @@ async function toggleCm(id){
   if (!cmts[id]) await loadCm(id);
 }
 async function loadCm(id){
-  const { data, error } = await sb.from("comments").select("id,user_id,body,created_at,profiles(name)").eq("post_id", id).order("created_at");
+  const { data, error } = await sb.from("comments").select("id,user_id,body,created_at,profiles(name,avatar_url)").eq("post_id", id).order("created_at");
   if (error) return alert(error.message);
   cmts[id] = data; drawPost(id);
 }
@@ -328,7 +353,7 @@ async function addPost(){
 async function renderFriends(){
   $("main").innerHTML = `<div class="empty">Loading…</div>`;
   const [{ data: people }, { data: fr }] = await Promise.all([
-    sb.from("profiles").select("id,name,bio").neq("id", me.id).order("name"),
+    sb.from("profiles").select("id,name,bio,avatar_url").neq("id", me.id).order("name"),
     sb.from("friendships").select("id,requester,addressee,status")
   ]);
   const byId = {}; (people || []).forEach(p => byId[p.id] = p);
@@ -336,7 +361,7 @@ async function renderFriends(){
   const incoming = (fr || []).filter(f => f.addressee === me.id && f.status === "pending");
   const friends = (fr || []).filter(f => f.status === "accepted");
   const others = (people || []).filter(p => !rel[p.id]);
-  const person = (p, extra) => `<div class="card row">${avatar(p.name, true)}<div style="flex:1"><div class="name">${esc(p.name)}</div>${p.bio ? `<div class="meta">${esc(p.bio)}</div>` : ""}${extra}</div></div>`;
+  const person = (p, extra) => `<div class="card row">${avatar(p.name, true, p.avatar_url, p.id)}<div style="flex:1"><div class="name lnk" onclick="openProfile('${p.id}')">${esc(p.name)}</div>${p.bio ? `<div class="meta">${esc(p.bio)}</div>` : ""}${extra}</div></div>`;
   let h = "";
   if (incoming.length){
     h += `<h2 class="h2">Friend requests</h2>` + incoming.map(f => byId[f.requester] ? person(byId[f.requester], `<div class="btns"><button class="btn" onclick="answer(${f.id},'accepted')">Confirm</button><button class="btn alt" onclick="answer(${f.id},'declined')">Delete</button></div>`) : "").join("");
@@ -354,29 +379,84 @@ async function renderFriends(){
 async function addFriend(id){
   const { error } = await sb.from("friendships").insert({ requester: me.id, addressee: id });
   if (error) alert(error.message);
-  renderFriends();
+  tab === "profile" ? renderProfile(viewId) : renderFriends();
 }
 async function answer(id, status){
   const { error } = await sb.from("friendships").update({ status }).eq("id", id);
   if (error) alert(error.message);
-  renderFriends();
+  tab === "profile" ? renderProfile(viewId) : renderFriends();
 }
 
 /* ---------- me ---------- */
-function renderMe(){
-  $("main").innerHTML = `<div class="card"><div class="row">${avatar(me.name, true)}<div><div class="name">${esc(me.name)}</div><div class="meta">Your profile</div></div></div>
-  <label class="fld" for="m-name">Name</label><input id="m-name" maxlength="60" value="${esc(me.name)}">
-  <label class="fld" for="m-bio">About you</label><textarea id="m-bio" maxlength="200" placeholder="A short bio (optional)">${esc(me.bio || "")}</textarea>
-  <div id="m-msg" class="meta" style="min-height:20px;margin-top:6px"></div>
-  <div class="btns"><button class="btn" onclick="saveProfile()">Save</button></div></div>
-  <div class="card"><button class="btn alt" onclick="logout()">Log out</button></div>`;
+async function renderProfile(id){
+  const mine = id === me.id;
+  $("main").innerHTML = `<div class="empty">Loading…</div>`;
+  let u = me, fr = null;
+  if (!mine){
+    const [{ data: pr, error }, { data: f }] = await Promise.all([
+      sb.from("profiles").select("id,name,bio,avatar_url").eq("id", id).maybeSingle(),
+      sb.from("friendships").select("id,requester,addressee,status")
+        .or(`and(requester.eq.${me.id},addressee.eq.${id}),and(requester.eq.${id},addressee.eq.${me.id})`).maybeSingle()
+    ]);
+    if (!pr) { $("main").innerHTML = `<button class="back" onclick="go(prevTab)">‹ Back</button><div class="empty">${error ? esc(error.message) : "Profile not found."}</div>`; return; }
+    u = pr; fr = f;
+  }
+  let h = mine ? "" : `<button class="back" onclick="go(prevTab)">‹ Back</button>`;
+  h += `<div class="card"><div class="pf"><div class="avwrap">${avatar(u.name, "xl", u.avatar_url)}${mine ? `<button class="cam" onclick="$('av-file').click()" aria-label="Change photo">📷</button>` : ""}</div><div class="nm">${esc(u.name)}</div>${u.bio ? `<div class="meta">${esc(u.bio)}</div>` : ""}`;
+  if (mine){
+    h += `<input id="av-file" type="file" accept="image/*" class="hidden" onchange="setAvatar(this)"><div id="av-msg" class="meta"></div>`;
+  } else {
+    let btn;
+    if (!fr) btn = `<button class="btn" onclick="addFriend('${id}')">Add friend</button>`;
+    else if (fr.status === "accepted") btn = `<div class="meta">✓ Friends</div>`;
+    else if (fr.status === "pending" && fr.requester === me.id) btn = `<div class="meta">Request sent. Waiting for a reply</div>`;
+    else if (fr.status === "pending") btn = `<div class="btns"><button class="btn" onclick="answer(${fr.id},'accepted')">Confirm</button><button class="btn alt" onclick="answer(${fr.id},'declined')">Delete</button></div>`;
+    else btn = "";
+    h += btn;
+  }
+  h += `</div></div>`;
+  if (mine){
+    h += `<div class="card"><div class="name">Edit profile</div>
+    <label class="fld" for="m-name">Name</label><input id="m-name" maxlength="60" value="${esc(me.name)}">
+    <label class="fld" for="m-bio">About you</label><textarea id="m-bio" maxlength="200" placeholder="A short bio (optional)">${esc(me.bio || "")}</textarea>
+    <div id="m-msg" class="meta" style="min-height:20px;margin-top:6px"></div>
+    <div class="btns"><button class="btn" onclick="saveProfile()">Save</button></div></div>`;
+  }
+  h += `<h2 class="h2">${mine ? "My posts" : "Posts"}</h2><div id="feed"><div class="empty">Loading…</div></div>`;
+  if (mine) h += `<div class="card"><button class="btn alt" onclick="logout()">Log out</button></div>`;
+  $("main").innerHTML = h;
+  loadFeed(id);
 }
 async function saveProfile(){
   const name = $("m-name").value.trim(), bio = $("m-bio").value.trim();
   if (!name){ $("m-msg").textContent = "Name cannot be empty."; return; }
-  const { data, error } = await sb.from("profiles").update({ name, bio }).eq("id", me.id).select("id,name,bio").single();
+  const { data, error } = await sb.from("profiles").update({ name, bio }).eq("id", me.id).select("id,name,bio,avatar_url").single();
   if (error){ $("m-msg").textContent = error.message; return; }
-  me = data; renderMe(); $("m-msg").textContent = "Saved ✓";
+  me = data; renderProfile(me.id);
+}
+async function cropSquare(file, size = 480){
+  try {
+    const bmp = await createImageBitmap(file);
+    const side = Math.min(bmp.width, bmp.height);
+    const c = document.createElement("canvas"); c.width = c.height = size;
+    c.getContext("2d").drawImage(bmp, (bmp.width - side) / 2, (bmp.height - side) / 2, side, side, 0, 0, size, size);
+    return await new Promise(r => c.toBlob(r, "image/jpeg", 0.85)) || file;
+  } catch (e) { return file; }
+}
+async function setAvatar(input){
+  const f = input.files && input.files[0]; if (!f) return;
+  $("av-msg").textContent = "Uploading…";
+  const blob = await cropSquare(f);
+  const path = `${me.id}/avatar-${Date.now()}.jpg`;
+  const { error: ue } = await sb.storage.from(BUCKET).upload(path, blob, { contentType: "image/jpeg" });
+  if (ue){ $("av-msg").textContent = "Upload failed: " + ue.message; return; }
+  const url = sb.storage.from(BUCKET).getPublicUrl(path).data.publicUrl;
+  const old = me.avatar_url;
+  const { data, error } = await sb.from("profiles").update({ avatar_url: url }).eq("id", me.id).select("id,name,bio,avatar_url").single();
+  if (error){ $("av-msg").textContent = error.message; return; }
+  me = data;
+  if (old){ const i = old.indexOf("/" + BUCKET + "/"); if (i > -1) sb.storage.from(BUCKET).remove([decodeURIComponent(old.slice(i + BUCKET.length + 2))]); }
+  renderProfile(me.id);
 }
 
 /* ---------- start ---------- */
