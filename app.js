@@ -100,6 +100,7 @@ async function boot(user){
   $("app").classList.remove("hidden");
   updateHeader();
   startRealtime();
+  startPresence();
   const st = history.state && history.state.t ? history.state : { t: "home", n: 0 };
   try { history.replaceState(st, ""); } catch (e) {}
   show(st);
@@ -107,7 +108,7 @@ async function boot(user){
 function updateHeader(){ $("h-av").innerHTML = avatar(me.name, false, me.avatar_url, me.id); }
 async function refreshBell(){
   const { count } = await sb.from("friendships").select("id", { count: "exact", head: true }).eq("addressee", me.id).eq("status", "pending");
-  const b = $("badge"); b.textContent = count > 9 ? "9+" : count; b.classList.toggle("hidden", !count);
+  document.querySelectorAll(".frb").forEach(b => { b.textContent = count > 9 ? "9+" : count; b.classList.toggle("hidden", !count); });
   const { count: mc, error: me2 } = await sb.from("messages").select("id", { count: "exact", head: true }).eq("receiver", me.id).is("read_at", null);
   const mb = $("mbadge"), mn = me2 ? 0 : (mc || 0);
   if (mb){ mb.textContent = mn > 9 ? "9+" : mn; mb.classList.toggle("hidden", !mn); }
@@ -126,6 +127,7 @@ function show(v, keep){
   closeLb();
   if (v.t !== "chat") stopChatPoll();
   $("app").classList.toggle("chatmode", v.t === "chat");
+  $("app").dataset.view = v.t;
   const hl = v.t === "edit" ? "me" : v.t;
   TABS.forEach(x => $("t-" + x).classList.toggle("on", x === hl));
   $("title").textContent = TITLES[v.t] || "Circle";
@@ -176,9 +178,9 @@ async function renderHome(){
   pickedFile = null;
   $("main").innerHTML = `<div class="card comp"><div class="row"><span class="avwrap">${avatar(me.name, false, me.avatar_url)}<i class="dot"></i></span><textarea id="p-body" rows="1" maxlength="1000" placeholder="What is on your mind?" aria-label="New post" oninput="this.style.height='auto';this.style.height=Math.max(56,this.scrollHeight)+'px'" style="flex:1"></textarea></div><div id="prev"></div><input id="p-file" type="file" accept="image/*" class="hidden" onchange="pickPhoto(this)">
   <div class="cbar">
-   <button onclick="$('p-file').click()"><svg viewBox="0 0 24 24" stroke="#2457D6"><path d="M4 8h3l2-3h6l2 3h3a1 1 0 0 1 1 1v10a1 1 0 0 1-1 1H4a1 1 0 0 1-1-1V9a1 1 0 0 1 1-1z"/><circle cx="12" cy="13.5" r="3.5"/></svg>Photo</button>
-   <button onclick="go('friends')"><svg viewBox="0 0 24 24" stroke="#8B5CF6"><circle cx="9" cy="8" r="3.5"/><path d="M2 20c0-3.5 3-6 7-6s7 2.5 7 6"/><circle cx="17" cy="9" r="2.5"/><path d="M18 14c2.5.4 4 2.2 4 5"/></svg>Friends</button>
-   <button id="p-go" onclick="addPost()"><svg viewBox="0 0 24 24" stroke="#F29A1F"><path d="M4 20l1-4L16 5l3 3L8 19zM14 7l3 3"/></svg>Post</button>
+   <button onclick="$('p-file').click()"><svg viewBox="0 0 24 24"><path d="M4 8h3l2-3h6l2 3h3a1 1 0 0 1 1 1v10a1 1 0 0 1-1 1H4a1 1 0 0 1-1-1V9a1 1 0 0 1 1-1z"/><circle cx="12" cy="13.5" r="3.5"/></svg>Photo</button>
+   <button onclick="go('reels')"><svg viewBox="0 0 24 24"><rect x="3" y="9" width="18" height="11" rx="2.5"/><path d="M3.5 9L5 4.5l4.5 1L8 9M10.5 9L12 5.5l4.5 1L15 9M17 9l1.5-3.5L21 6"/><path d="M10.3 12.5v4.2l3.8-2.1z" fill="currentColor"/></svg>Reels</button>
+   <button id="p-go" onclick="addPost()"><svg viewBox="0 0 24 24"><path d="M4 20l1-4L16 5l3 3L8 19zM14 7l3 3"/></svg>Post</button>
   </div></div><div id="feed"><div class="empty">Loading…</div></div>`;
   loadFeed(null);
 }
@@ -615,6 +617,59 @@ function onIncoming(m){
   else { refreshBell(); if (cur && cur.t === "inbox") renderInbox(); }
 }
 
+/* ---------- online status (Supabase presence, no SQL needed) ---------- */
+let pres = null, onlineIds = new Set(), presOk = false;
+const isOn = id => onlineIds.has(id);
+function startPresence(){
+  if (pres || !me) return;
+  try {
+    pres = sb.channel("online-users", { config: { presence: { key: me.id } } });
+    pres.on("presence", { event: "sync" }, () => {
+      onlineIds = new Set(Object.keys(pres.presenceState()));
+      presOk = true; paintPresence();
+    }).subscribe(async st => { if (st === "SUBSCRIBED"){ try { await pres.track({ at: Date.now() }); } catch (e) {} } });
+    document.addEventListener("visibilitychange", () => {
+      if (!pres) return;
+      try { document.hidden ? pres.untrack() : pres.track({ at: Date.now() }); } catch (e) {}
+    });
+  } catch (e) {}
+}
+function paintChatStatus(){
+  const w = $("chat-avw"), s = $("chat-sub"); if (!w || !s) return;
+  const on = isOn(chatId);
+  w.classList.toggle("on", on);
+  s.textContent = presOk ? (on ? "Online" : "Offline") : "";
+}
+function paintPresence(){
+  if (cur && cur.t === "chat") paintChatStatus();
+  document.querySelectorAll(".avwrap[data-uid]").forEach(el => el.classList.toggle("on", isOn(el.dataset.uid)));
+}
+
+/* ---------- small helpers for the chat look ---------- */
+function soon(t){
+  let el = $("toast");
+  if (!el){ el = document.createElement("div"); el.id = "toast"; el.className = "toast"; document.body.appendChild(el); }
+  el.textContent = t; el.classList.remove("hidden");
+  clearTimeout(soon.t); soon.t = setTimeout(() => el.classList.add("hidden"), 2200);
+}
+const EMOJIS = ["😊","😂","😍","🥰","😘","😉","😎","🤗","🙂","😢","😭","😕","😮","😡","🤔","😴","👍","🙏","❤️","💙","🔥","🎉","✨","🌹"];
+function toggleEmo(){ const t = $("emo"); if (t) t.classList.toggle("hidden"); }
+function addEmo(e){
+  const el = $("chat-in"); if (!el) return;
+  const a = el.selectionStart ?? el.value.length, b = el.selectionEnd ?? a;
+  el.value = el.value.slice(0, a) + e + el.value.slice(b);
+  el.selectionStart = el.selectionEnd = a + e.length;
+  el.dispatchEvent(new Event("input"));
+}
+function emojiOnly(s){
+  try { return /^(?:\p{Extended_Pictographic}|\p{Emoji_Modifier}|‍|️|\s)+$/u.test(s) && s.trim().length <= 24; } catch (e) { return false; }
+}
+const ICON_SMILE = `<svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="9.5"/><circle cx="9" cy="10" r=".6" fill="currentColor"/><circle cx="15" cy="10" r=".6" fill="currentColor"/><path d="M8 14.5c1 1.5 2.2 2.2 4 2.2s3-.7 4-2.2"/></svg>`;
+const ICON_CLIP = `<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M20.5 11.5l-8 8a5.5 5.5 0 0 1-7.8-7.8l8.5-8.5a3.700 3.700 0 0 1 5.200 5.200l-8.500 8.500a1.900 1.900 0 0 1-2.600-2.600l7.800-7.800"/></svg>`;
+const ICON_PHONE = `<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M5 4h4l2 5-2.500 1.500a11 11 0 0 0 5 5L15 13l5 2v4a2 2 0 0 1-2 2A16 16 0 0 1 3 6a2 2 0 0 1 2-2z" fill="currentColor"/></svg>`;
+const ICON_VIDEO = `<svg viewBox="0 0 24 24" aria-hidden="true"><rect x="2.5" y="6" width="13" height="12" rx="3" fill="currentColor"/><path d="M16 10.500l5-3v9l-5-3z" fill="currentColor"/></svg>`;
+const ICON_INFO = `<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 11v6" stroke-width="2.800"/><circle cx="12" cy="7.200" r="1" fill="currentColor"/></svg>`;
+
 /* ---------- messages ---------- */
 let chatId = null, chatKey = "", chatPoll = null, chatServer = [], chatPending = [];
 function stopChatPoll(){ if (chatPoll){ clearInterval(chatPoll); chatPoll = null; } }
@@ -634,6 +689,9 @@ const TICK2 = `<svg class="tk tk2" viewBox="0 0 22 16" aria-hidden="true"><path 
 const TICKW = `<svg class="tk" viewBox="0 0 16 16" aria-hidden="true"><circle cx="8" cy="8" r="5.5"/><path d="M8 5v3.2l2 1.3"/></svg>`;
 function tickHtml(s){ return s === "sending" ? TICKW : s === "sent" ? TICK1 : TICK2; }
 
+/* avatar with a green dot that shows only while that person is online */
+function avOn(p){ return `<span class="avwrap${isOn(p.id) ? " on" : ""}" data-uid="${p.id}">${avatar(p.name, true, p.avatar_url)}<i class="dot"></i></span>`; }
+function newChat(){ const s = $("start-chat"); if (s) s.scrollIntoView({ behavior: "smooth", block: "start" }); else go("friends"); }
 async function renderInbox(){
   $("main").innerHTML = `<div class="empty">Loading…</div>`;
   const [{ data, error }, { data: fa }] = await Promise.all([
@@ -658,14 +716,14 @@ async function renderInbox(){
     h += [...conv.values()].map(c => {
       const p = ppl[c.id]; if (!p) return "";
       const mine = c.last.sender === me.id;
-      return `<div class="card crow${c.unread ? " un" : ""}" onclick="openChat('${c.id}')">${avatar(p.name, true, p.avatar_url)}<div class="mid"><div class="top"><span class="name">${esc(p.name)}</span><span class="meta">${ago(c.last.created_at)}</span></div><div class="last">${mine ? `<span class="tkl s-${msgState(c.last)}">${tickHtml(msgState(c.last))}</span>` : ""}${esc(c.last.body)}</div></div>${c.unread ? `<span class="ubadge">${c.unread > 9 ? "9+" : c.unread}</span>` : ""}</div>`;
+      return `<div class="card crow${c.unread ? " un" : ""}" onclick="openChat('${c.id}')">${avOn(p)}<div class="mid"><div class="top"><span class="name">${esc(p.name)}</span><span class="meta">${ago(c.last.created_at)}</span></div><div class="last">${mine ? `<span class="tkl s-${msgState(c.last)}">${tickHtml(msgState(c.last))}</span>` : ""}${esc(c.last.body)}</div></div>${c.unread ? `<span class="ubadge">${c.unread > 9 ? "9+" : c.unread}</span>` : ""}</div>`;
     }).join("");
   } else {
     h += `<div class="empty">No messages yet. Pick a friend below to start chatting.</div>`;
   }
   const fl = fids.map(i => ppl[i]).filter(Boolean);
   if (fl.length){
-    h += `<h2 class="h2">Start a chat</h2>` + fl.map(p => `<div class="card crow" onclick="openChat('${p.id}')">${avatar(p.name, true, p.avatar_url)}<div class="mid"><div class="name">${esc(p.name)}</div><div class="meta">Tap to send a message</div></div></div>`).join("");
+    h += `<h2 class="h2" id="start-chat">Start a chat</h2>` + fl.map(p => `<div class="card crow" onclick="openChat('${p.id}')">${avOn(p)}<div class="mid"><div class="name">${esc(p.name)}</div><div class="meta">Tap to send a message</div></div></div>`).join("");
   } else if (!conv.size){
     h += `<div class="empty">Add some friends first, then you can message them.</div>`;
   }
@@ -674,7 +732,7 @@ async function renderInbox(){
 async function renderChat(id){
   stopChatPoll();
   chatId = id; chatKey = ""; chatServer = []; chatPending = [];
-  $("main").innerHTML = `<div class="chat"><div class="chat-top"><button class="bk" onclick="goBack()" aria-label="Back">${ICON_BACK}</button><div id="chat-who" class="chat-who"></div></div><div id="chat-list" class="chat-list"><div class="empty">Loading…</div></div><div id="chat-foot"></div></div>`;
+  $("main").innerHTML = `<div class="chat"><div class="chat-top"><button class="bk" onclick="goBack()" aria-label="Back">${ICON_BACK}</button><div id="chat-who" class="chat-who"></div><div class="chat-act"><button class="hb" onclick="soon('Voice calls are coming soon')" aria-label="Voice call">${ICON_PHONE}</button><button class="hb" onclick="soon('Video calls are coming soon')" aria-label="Video call">${ICON_VIDEO}</button><button class="hb" onclick="openProfile('${id}')" aria-label="Profile info">${ICON_INFO}</button></div></div><div id="chat-list" class="chat-list"><div class="empty">Loading…</div></div><div id="chat-foot"></div></div>`;
   const [{ data: u }, { data: f }] = await Promise.all([
     sb.from("profiles").select("id,name,avatar_url").eq("id", id).maybeSingle(),
     sb.from("friendships").select("id").eq("status", "accepted")
@@ -682,10 +740,11 @@ async function renderChat(id){
   ]);
   if (!(cur && cur.t === "chat" && cur.id === id)) return;
   if (!u){ $("chat-list").innerHTML = `<div class="empty">Person not found.</div>`; return; }
-  $("chat-who").innerHTML = `${avatar(u.name, false, u.avatar_url)}<b>${esc(u.name)}</b>`;
+  $("chat-who").innerHTML = `<span class="avw" id="chat-avw">${avatar(u.name, false, u.avatar_url)}<i class="odot"></i></span><span class="wtx"><b>${esc(u.name)}</b><small id="chat-sub"></small></span>`;
   $("chat-who").onclick = () => openProfile(id);
+  paintChatStatus();
   $("chat-foot").innerHTML = f
-    ? `<div class="chat-bar"><textarea id="chat-in" rows="1" maxlength="1000" placeholder="Message…" aria-label="Message" oninput="this.style.height='auto';this.style.height=Math.min(120,Math.max(46,this.scrollHeight))+'px'" onfocus="setTimeout(chatBottom,350)"></textarea><button class="btn send" id="chat-send" onclick="sendChat()" aria-label="Send">${ICON_SEND}</button></div>`
+    ? `<div id="emo" class="emo-tray hidden">${EMOJIS.map(e => `<button onmousedown="event.preventDefault()" onclick="addEmo('${e}')" aria-label="${e}">${e}</button>`).join("")}</div><div class="chat-bar"><div class="cb-field"><button class="cb-ico" onmousedown="event.preventDefault()" onclick="toggleEmo()" aria-label="Emoji">${ICON_SMILE}</button><textarea id="chat-in" rows="1" maxlength="1000" placeholder="Message…" aria-label="Message" oninput="this.style.height='auto';this.style.height=Math.min(120,Math.max(46,this.scrollHeight))+'px'" onfocus="setTimeout(chatBottom,350)"></textarea><button class="cb-ico" onclick="soon('Sending photos in chat is coming soon')" aria-label="Attach">${ICON_CLIP}</button></div><button class="btn send" id="chat-send" onclick="sendChat()" aria-label="Send">${ICON_SEND}</button></div>`
     : `<div class="chat-note">You can only message people who are your friends.</div>`;
   await loadChat(true);
   chatPoll = setInterval(() => { if (!document.hidden) loadChat(false); }, rtOk ? 6000 : 2500);
@@ -704,7 +763,7 @@ function drawChat(first){
     const d = dayLabel(m.created_at);
     if (d !== lastDay){ html += `<div class="dsep">${esc(d)}</div>`; lastDay = d; }
     const mine = m.sender === me.id, st = mine ? msgState(m) : "";
-    html += `<div class="msg ${mine ? "me" : "them"}">${esc(m.body)}<i>${clock(m.created_at)}${mine ? `<span class="tkl s-${st}">${tickHtml(st)}</span>` : ""}</i></div>`;
+    html += `<div class="msg ${mine ? "me" : "them"}${emojiOnly(m.body) ? " emo" : ""}">${esc(m.body)}<i>${clock(m.created_at)}${mine ? `<span class="tkl s-${st}">${tickHtml(st)}</span>` : ""}</i></div>`;
   });
   const last = msgs[msgs.length - 1];
   if (last && last.sender === me.id){
@@ -735,6 +794,7 @@ async function sendChat(){
   unlockAudio();
   const tmp = { id: "t" + Date.now(), sender: me.id, receiver: chatId, body, created_at: new Date().toISOString(), pending: true };
   chatPending.push(tmp); el.value = ""; el.style.height = "46px"; drawChat(true); el.focus();
+  const tray = $("emo"); if (tray) tray.classList.add("hidden");
   const { data, error } = await sb.from("messages").insert({ sender: me.id, receiver: chatId, body }).select("*").single();
   chatPending = chatPending.filter(m => m !== tmp);
   if (error){ drawChat(true); el.value = body; return alert(msgErr(error.message)); }
