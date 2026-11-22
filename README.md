@@ -19,7 +19,7 @@ The publishable key (`sb_publishable_...`) is already inside `index.html`. Never
 ## Files
 - `index.html`: the whole app.
 - `manifest.webmanifest`: PWA manifest.
-- `sw.js`: service worker (network first, cache fallback). Bump `CACHE` (now `circle-v6`) when you want phones to drop old files.
+- `sw.js`: service worker (network first, cache fallback). Bump `CACHE` (now `circle-v8`) when you want phones to drop old files.
 - `icon.svg`: app icon.
 - `migration-2.sql`: likes, comments, photos, delete, profile edit (run once).
 - `migration-3.sql`: profile photo column + makes the photo bucket public (run once).
@@ -42,7 +42,11 @@ The publishable key (`sb_publishable_...`) is already inside `index.html`. Never
 - Messages (friends only): chat icon in the header (red count of unread), Messages screen (conversations + "Start a chat" with friends), full-screen chat with bubbles, day separators, "Seen", and a send box. The chat refreshes every 3 s while open (polling, no realtime setup needed); unread count refreshes every 20 s. Table `messages` (`sender`, `receiver`, `body`, `read_at`); the receiver may only update `read_at`.
 - Light theme only (dark mode was removed on purpose; the owner does not want black).
 - Floating bottom tab bar: Home, Friends, Reels, Marketplace, Me. Reels and Marketplace are "coming soon" placeholder screens.
-- Look follows the mockup: wavy blue header fading into the page, rounded cards, stacked reaction icons (cosmetic, every like counts as a Like), blue tick for names listed in `VERIFIED` in `index.html`.
+- Glass look (v8, from the owner's new mockups): deep blue-to-violet header with glass round buttons, soft wave backdrop at the bottom of every screen, pill-shaped cards, blue-violet gradient chat bubbles, glass bottom nav (Reels tab highlighted in violet).
+- Home header: search + big gradient chat button (red unread count). The friend-request count now sits on the Friends tab and on the floating bell of the Messages screen.
+- Messages screen: no bottom nav; floating bell (friend requests) + gear (opens Me / settings); compose button (jumps to "Start a chat") and own avatar in the header; tap the logo to go Home.
+- Chat screen: glass header with avatar, green dot and "Online/Offline" text (Supabase Realtime *presence*, channel `online-users`, no SQL needed; shows nothing if Realtime is unreachable), phone / video buttons (placeholders: show "coming soon"), info button (opens profile), frosted day pill, emoji-only messages shown big, composer with emoji tray, paperclip (placeholder) and round send button.
+- Older look notes: wavy blue header fading into the page, rounded cards, stacked reaction icons (cosmetic, every like counts as a Like), blue tick for names listed in `VERIFIED` in `index.html`.
 
 ## IMPORTANT: order when updating
 When a version needs new SQL, run the SQL first, then upload the new `index.html`. The new page reads columns that must exist (for example `profiles.avatar_url`).
