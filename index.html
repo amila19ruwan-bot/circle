@@ -4,64 +4,79 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <meta name="theme-color" content="#2457D6">
+<meta name="color-scheme" content="light dark">
 <title>Circle</title>
 <link rel="manifest" href="manifest.webmanifest">
 <link rel="icon" href="icon.svg">
 <link rel="apple-touch-icon" href="icon.svg">
 <style>
-:root{--blue:#2457D6;--ink:#1B1F27;--mute:#5B6472;--line:#E3E6EB;--bg:#F4F5F7;--soft:#EEF0F4}
-*{box-sizing:border-box}
+:root{--blue:#2457D6;--blue2:#5B8CFF;--ink:#1B1F27;--mute:#667085;--line:#E6E9EF;--bg:#EEF1F7;--soft:#EEF1F6;--card:#fff;--tint:#E6EDFC;--tinttx:#1A45B0;--shadow:0 1px 2px rgba(16,24,40,.06),0 4px 14px rgba(16,24,40,.05)}
+@media (prefers-color-scheme:dark){:root{--ink:#EDF0F5;--mute:#98A2B3;--line:#2A303B;--bg:#0E1116;--soft:#262C37;--card:#171B22;--tint:#1E2B4A;--tinttx:#A9C2FF;--shadow:0 1px 2px rgba(0,0,0,.4)}}
+*{box-sizing:border-box;-webkit-tap-highlight-color:transparent}
 html,body{height:100%;margin:0}
-body{font:400 15px/1.4 system-ui,-apple-system,"Segoe UI",Roboto,sans-serif;background:var(--bg);color:var(--ink);padding-top:env(safe-area-inset-top)}
+body{font:400 15px/1.45 system-ui,-apple-system,"Segoe UI",Roboto,sans-serif;background:var(--bg);color:var(--ink);padding-top:env(safe-area-inset-top)}
 button,input,textarea{font:inherit;color:inherit}
-button{cursor:pointer}
+button{cursor:pointer;transition:transform .08s,opacity .15s}
+button:active{transform:scale(.97)}
 .hidden{display:none!important}
 #app{display:flex;flex-direction:column;height:100%;max-width:520px;margin:0 auto;background:var(--bg)}
-header{height:60px;background:#fff;padding:0 16px;display:flex;align-items:center;justify-content:space-between;flex:none}
-header h1{margin:0;font-size:24px;font-weight:700;color:var(--blue)}
-main{flex:1;overflow-y:auto;padding:8px 0 16px;display:flex;flex-direction:column;gap:8px}
-.card{background:#fff;padding:12px 16px}
+header{height:60px;background:linear-gradient(135deg,var(--blue),var(--blue2));padding:0 18px;display:flex;align-items:center;flex:none;box-shadow:0 2px 12px rgba(36,87,214,.35);position:relative;z-index:2}
+header h1{margin:0;font-size:22px;font-weight:800;letter-spacing:-.3px;color:#fff;display:flex;align-items:center;gap:10px}
+header h1::before{content:"";width:22px;height:22px;border-radius:50%;border:3px solid #fff;box-shadow:inset 0 0 0 4px transparent;background:radial-gradient(circle,#fff 0 3px,transparent 3.5px)}
+main{flex:1;overflow-y:auto;padding:12px 12px 20px;display:flex;flex-direction:column;gap:12px}
+#feed{display:flex;flex-direction:column;gap:12px}
+.card{background:var(--card);padding:14px 16px;border-radius:18px;box-shadow:var(--shadow)}
+#feed .card{margin-bottom:0!important}
 .row{display:flex;gap:12px;align-items:center}
-.av{width:40px;height:40px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-weight:700;flex:none;color:var(--ink)}
-.av.lg{width:56px;height:56px}
+.av{width:42px;height:42px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-weight:700;flex:none;color:#fff;text-shadow:0 1px 2px rgba(0,0,0,.25)}
+.av.lg{width:58px;height:58px;font-size:20px}
 .name{font-weight:700}
 .meta{font-size:13px;color:var(--mute)}
-.body{margin:10px 0 0;white-space:pre-wrap;word-break:break-word}
-.h2{background:#fff;padding:12px 16px 4px;font-size:17px;font-weight:700;margin:0}
-.btn{min-height:44px;padding:0 20px;border:0;border-radius:8px;font-weight:600;background:var(--blue);color:#fff}
-.btn.alt{background:var(--soft);color:var(--ink)}
-.btn.soft{background:#E6EDFC;color:#1A45B0}
-.btns{display:flex;gap:8px;margin-top:6px}
-textarea,input{width:100%;border:1px solid #D5D9E0;border-radius:10px;padding:12px;background:#fff}
-textarea{resize:none;min-height:80px}
-.empty{padding:24px 16px;text-align:center;color:var(--mute)}
-nav{display:flex;background:#fff;border-top:1px solid var(--line);padding-bottom:env(safe-area-inset-bottom);flex:none}
-nav button{flex:1;height:64px;border:0;background:none;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:2px;font-size:11px;font-weight:600;color:var(--mute)}
+.body{margin:10px 0 0;white-space:pre-wrap;word-break:break-word;font-size:15.5px}
+.h2{padding:6px 6px 0;font-size:13px;font-weight:700;margin:6px 0 -4px;color:var(--mute);text-transform:uppercase;letter-spacing:.6px}
+.btn{min-height:44px;padding:0 22px;border:0;border-radius:12px;font-weight:700;background:linear-gradient(135deg,var(--blue),var(--blue2));color:#fff;box-shadow:0 2px 8px rgba(36,87,214,.3)}
+.btn:disabled{opacity:.6}
+.btn.alt{background:var(--soft);color:var(--ink);box-shadow:none}
+.btn.soft{background:var(--tint);color:var(--tinttx);box-shadow:none}
+.btns{display:flex;gap:8px;margin-top:10px}
+.btns .btn:last-child:not(.alt){margin-left:auto}
+textarea,input{width:100%;border:1.5px solid var(--line);border-radius:12px;padding:12px 14px;background:var(--card);transition:border-color .15s,box-shadow .15s}
+textarea:focus,input:focus{outline:0;border-color:var(--blue);box-shadow:0 0 0 4px rgba(36,87,214,.15)}
+textarea{resize:none;min-height:84px}
+::placeholder{color:var(--mute);opacity:.8}
+.empty{padding:28px 16px;text-align:center;color:var(--mute);background:var(--card);border-radius:18px;box-shadow:var(--shadow)}
+nav{display:flex;background:var(--card);border-top:1px solid var(--line);padding-bottom:env(safe-area-inset-bottom);flex:none}
+nav button{flex:1;height:64px;border:0;background:none;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:3px;font-size:11px;font-weight:700;color:var(--mute);position:relative}
 nav button.on{color:var(--blue)}
-nav svg{width:24px;height:24px;fill:none;stroke:currentColor;stroke-width:2;stroke-linecap:round;stroke-linejoin:round}
-#auth{max-width:420px;margin:0 auto;padding:48px 20px;display:flex;flex-direction:column;gap:12px}
-#auth h1{margin:0;font-size:36px;color:var(--blue)}
+nav button.on::before{content:"";position:absolute;top:0;width:32px;height:3px;border-radius:0 0 3px 3px;background:var(--blue)}
+@media (prefers-color-scheme:dark){nav button.on{color:var(--blue2)}nav button.on::before{background:var(--blue2)}}
+nav svg{width:25px;height:25px;fill:none;stroke:currentColor;stroke-width:2;stroke-linecap:round;stroke-linejoin:round}
+body:has(#auth:not(.hidden)),body:has(#reset:not(.hidden)){background:linear-gradient(160deg,var(--blue),var(--blue2) 45%,var(--bg) 45%)}
+#auth,#reset{width:calc(100% - 32px);max-width:420px;margin:40px auto 0;padding:28px 22px;display:flex;flex-direction:column;gap:12px;background:var(--card);border-radius:24px;box-shadow:0 10px 40px rgba(16,24,40,.2)}
+#auth h1{margin:0;font-size:38px;font-weight:800;letter-spacing:-1px;background:linear-gradient(135deg,var(--blue),var(--blue2));-webkit-background-clip:text;background-clip:text;color:transparent}
 #auth p{margin:0 0 8px;color:var(--mute)}
 #msg{color:#B42318;min-height:20px;font-size:14px}
 #msg.ok{color:#18794E}
-#reset{max-width:420px;margin:0 auto;padding:48px 20px;display:flex;flex-direction:column;gap:12px}
-.link{background:none;border:0;color:var(--blue);font-weight:600;min-height:44px}
-.post-img{display:block;width:100%;max-height:440px;object-fit:cover;border-radius:10px;margin-top:10px;background:var(--soft)}
-.acts{display:flex;gap:4px;margin-top:8px;border-top:1px solid var(--line);padding-top:4px}
-.act{flex:1;min-height:44px;border:0;background:none;display:flex;align-items:center;justify-content:center;gap:6px;font-weight:600;font-size:14px;color:var(--mute);border-radius:8px}
-.act.on{color:#D92D5B}
+.link{background:none;border:0;color:var(--blue);font-weight:700;min-height:44px}
+@media (prefers-color-scheme:dark){.link{color:var(--blue2)}}
+.post-img{display:block;width:100%;max-height:460px;object-fit:cover;border-radius:14px;margin-top:12px;background:var(--soft)}
+.acts{display:flex;gap:4px;margin-top:10px;border-top:1px solid var(--line);padding-top:4px}
+.act{flex:1;min-height:44px;border:0;background:none;display:flex;align-items:center;justify-content:center;gap:6px;font-weight:700;font-size:14px;color:var(--mute);border-radius:12px}
+.act:active{background:var(--soft)}
+.act.on{color:#E0245E}
 .act svg{width:22px;height:22px;fill:none;stroke:currentColor;stroke-width:2;stroke-linecap:round;stroke-linejoin:round}
 .act.on svg{fill:currentColor}
-.del{margin-left:auto;background:none;border:0;color:var(--mute);min-height:44px;min-width:44px;font-size:13px}
+.del{margin-left:auto;background:none;border:0;color:var(--mute);min-height:44px;min-width:44px;font-size:13px;font-weight:600}
 .cm{display:flex;gap:8px;margin-top:10px}
-.cm .bub{background:var(--soft);border-radius:12px;padding:8px 12px;flex:1;min-width:0;word-break:break-word;white-space:pre-wrap}
-.cm-form{display:flex;gap:8px;margin-top:10px}
-.cm-form input{flex:1}
-.cm-form .btn{padding:0 16px}
-.prev{position:relative;margin-top:8px}
-.prev img{width:100%;max-height:260px;object-fit:cover;border-radius:10px;display:block}
-.prev button{position:absolute;top:6px;right:6px;width:44px;height:44px;border-radius:50%;border:0;background:rgba(0,0,0,.6);color:#fff;font-size:18px}
-label.fld{display:block;font-size:13px;color:var(--mute);margin:10px 0 4px}
+.cm .av{width:32px;height:32px;font-size:12px}
+.cm .bub{background:var(--soft);border-radius:16px;padding:8px 14px;flex:1;min-width:0;word-break:break-word;white-space:pre-wrap}
+.cm-form{display:flex;gap:8px;margin-top:12px}
+.cm-form input{flex:1;border-radius:22px}
+.cm-form .btn{padding:0 18px;border-radius:22px}
+.prev{position:relative;margin-top:10px}
+.prev img{width:100%;max-height:260px;object-fit:cover;border-radius:14px;display:block}
+.prev button{position:absolute;top:8px;right:8px;width:44px;height:44px;border-radius:50%;border:0;background:rgba(0,0,0,.6);color:#fff;font-size:18px}
+label.fld{display:block;font-size:13px;font-weight:600;color:var(--mute);margin:12px 0 4px}
 :focus-visible{outline:3px solid #8FB0FF;outline-offset:2px}
 </style>
 </head>
@@ -79,7 +94,7 @@ label.fld{display:block;font-size:13px;color:var(--mute);margin:10px 0 4px}
   <button class="link" id="a-forgot" onclick="forgotPass()">Forgot password?</button>
 </section>
 
-<section id="reset" class="hidden" style="max-width:420px;margin:0 auto;padding:48px 20px;flex-direction:column;gap:12px">
+<section id="reset" class="hidden">
   <h1 style="margin:0;font-size:30px;color:var(--blue)">New password</h1>
   <p style="margin:0 0 8px;color:var(--mute)">Choose a new password for your account.</p>
   <input id="r-pass" type="password" placeholder="New password (6+ characters)" autocomplete="new-password" aria-label="New password">
@@ -108,7 +123,7 @@ const BUCKET = "post-images";
 let me = null, tab = "home", signup = false;
 const $ = id => document.getElementById(id);
 const esc = s => String(s ?? "").replace(/[&<>"']/g, c => ({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
-const COLORS = ["#CFE0FF","#FBD9C4","#CDEBD8","#E4D9F7","#FFF0B8"];
+const COLORS = ["linear-gradient(135deg,#4F7CF0,#7FA6FF)","linear-gradient(135deg,#F2784B,#FFA67A)","linear-gradient(135deg,#2FA36B,#6FD4A0)","linear-gradient(135deg,#8B5CF6,#B794FF)","linear-gradient(135deg,#E5A91A,#FFD369)","linear-gradient(135deg,#E0457B,#FF86AC)"];
 function avatar(name, big){
   const n = name || "?";
   let h = 0; for (const ch of n) h = (h * 31 + ch.charCodeAt(0)) % 997;
@@ -216,7 +231,7 @@ function postHtml(p){
   const name = p.profiles && p.profiles.name;
   const liked = p.likes.some(l => l.user_id === me.id);
   const count = cmts[p.id] ? cmts[p.id].length : p.comments.length;
-  let h = `<div class="card" id="post-${p.id}" style="margin-bottom:8px"><div class="row">${avatar(name)}<div><div class="name">${esc(name)}</div><div class="meta">${ago(p.created_at)}</div></div>${p.user_id === me.id ? `<button class="del" onclick="delPost(${p.id})" aria-label="Delete post">Delete</button>` : ""}</div>`;
+  let h = `<div class="card" id="post-${p.id}" ><div class="row">${avatar(name)}<div><div class="name">${esc(name)}</div><div class="meta">${ago(p.created_at)}</div></div>${p.user_id === me.id ? `<button class="del" onclick="delPost(${p.id})" aria-label="Delete post">Delete</button>` : ""}</div>`;
   if (p.body) h += `<p class="body">${esc(p.body)}</p>`;
   if (p.image_url) h += `<img class="post-img" src="${esc(p.image_url)}" alt="Photo" loading="lazy">`;
   h += `<div class="acts"><button class="act ${liked ? "on" : ""}" onclick="toggleLike(${p.id})" aria-label="Like">${ICON_HEART}${p.likes.length || ""}</button><button class="act" onclick="toggleCm(${p.id})" aria-label="Comments">${ICON_CHAT}${count || ""}</button></div>`;
