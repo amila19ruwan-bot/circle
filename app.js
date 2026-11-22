@@ -99,6 +99,7 @@ async function boot(user){
   $("auth").classList.add("hidden");
   $("app").classList.remove("hidden");
   updateHeader();
+  startRealtime();
   const st = history.state && history.state.t ? history.state : { t: "home", n: 0 };
   try { history.replaceState(st, ""); } catch (e) {}
   show(st);
@@ -110,7 +111,13 @@ async function refreshBell(){
   const { count: mc, error: me2 } = await sb.from("messages").select("id", { count: "exact", head: true }).eq("receiver", me.id).is("read_at", null);
   const mb = $("mbadge"), mn = me2 ? 0 : (mc || 0);
   if (mb){ mb.textContent = mn > 9 ? "9+" : mn; mb.classList.toggle("hidden", !mn); }
+  if (!me2){
+    if (mn > lastUnread && !rtOk && !(cur && cur.t === "chat")) tone("in");
+    lastUnread = mn;
+    if (mn) sb.from("messages").update({ delivered_at: new Date().toISOString() }).eq("receiver", me.id).is("delivered_at", null).then(() => {}, () => {});
+  }
 }
+let lastUnread = 0, rtOk = false;
 /* ---------- navigation (with phone Back button support) ---------- */
 let cur = null;
 const TITLES = { home: "Circle", friends: "Friends", reels: "Reels", market: "Marketplace", me: "My profile", profile: "Profile", edit: "Edit profile", saved: "Saved", post: "Post", search: "Search", inbox: "Messages", chat: "Chat" };
@@ -563,8 +570,53 @@ function renderSaved(){
 }
 
 
+/* ---------- sound ---------- */
+let audioCtx = null;
+function unlockAudio(){
+  try { audioCtx = audioCtx || new (window.AudioContext || window.webkitAudioContext)(); if (audioCtx.state === "suspended") audioCtx.resume(); } catch (e) {}
+}
+["click", "touchstart", "keydown"].forEach(ev => document.addEventListener(ev, unlockAudio, { passive: true }));
+function tone(kind){
+  try {
+    if (!audioCtx || audioCtx.state !== "running") return;
+    const t = audioCtx.currentTime;
+    const notes = kind === "in" ? [[880, 0], [1175, 0.13]] : [[620, 0], [820, 0.07]];
+    notes.forEach(([f, d]) => {
+      const o = audioCtx.createOscillator(), g = audioCtx.createGain();
+      o.type = "sine"; o.frequency.value = f;
+      g.gain.setValueAtTime(0.0001, t + d);
+      g.gain.exponentialRampToValueAtTime(kind === "in" ? 0.3 : 0.15, t + d + 0.02);
+      g.gain.exponentialRampToValueAtTime(0.0001, t + d + 0.28);
+      o.connect(g); g.connect(audioCtx.destination); o.start(t + d); o.stop(t + d + 0.3);
+    });
+    if (kind === "in" && navigator.vibrate) navigator.vibrate(70);
+  } catch (e) {}
+}
+
+/* ---------- realtime (instant messages) ---------- */
+let rt = null;
+function startRealtime(){
+  if (rt || !me) return;
+  try {
+    rt = sb.channel("msgs-" + me.id)
+      .on("postgres_changes", { event: "INSERT", schema: "public", table: "messages", filter: "receiver=eq." + me.id }, p => onIncoming(p.new))
+      .on("postgres_changes", { event: "UPDATE", schema: "public", table: "messages", filter: "sender=eq." + me.id }, p => {
+        if (cur && cur.t === "chat" && p.new && cur.id === p.new.receiver) loadChat(false);
+      })
+      .subscribe(st => { rtOk = st === "SUBSCRIBED"; });
+  } catch (e) {}
+}
+function onIncoming(m){
+  if (!m) return;
+  sb.from("messages").update({ delivered_at: new Date().toISOString() }).eq("id", m.id).is("delivered_at", null).then(() => {}, () => {});
+  const inThis = cur && cur.t === "chat" && cur.id === m.sender;
+  tone("in");
+  if (inThis) loadChat(false);
+  else { refreshBell(); if (cur && cur.t === "inbox") renderInbox(); }
+}
+
 /* ---------- messages ---------- */
-let chatId = null, chatKey = "", chatPoll = null;
+let chatId = null, chatKey = "", chatPoll = null, chatServer = [], chatPending = [];
 function stopChatPoll(){ if (chatPoll){ clearInterval(chatPoll); chatPoll = null; } }
 const ICON_SEND = `<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M22 2L11 13M22 2l-7 20-4-9-9-4z"/></svg>`;
 function msgErr(m){ return /relation|schema cache|does not exist|permission denied/i.test(m) ? "Messages need migration-5.sql to be run in Supabase first." : m; }
@@ -575,10 +627,17 @@ function dayLabel(t){
   if (d.toDateString() === y.toDateString()) return "Yesterday";
   return d.toLocaleDateString("en", { month: "short", day: "numeric", year: d.getFullYear() === n.getFullYear() ? undefined : "numeric" });
 }
+/* status of my message: sending / sent / delivered / seen */
+function msgState(m){ return m.pending ? "sending" : m.read_at ? "seen" : m.delivered_at ? "delivered" : "sent"; }
+const TICK1 = `<svg class="tk" viewBox="0 0 16 16" aria-hidden="true"><path d="M3 8.5l3.2 3.2L13 5"/></svg>`;
+const TICK2 = `<svg class="tk tk2" viewBox="0 0 22 16" aria-hidden="true"><path d="M2 8.5l3.2 3.2L12 5"/><path d="M9 11.5l.7.7L18 5"/></svg>`;
+const TICKW = `<svg class="tk" viewBox="0 0 16 16" aria-hidden="true"><circle cx="8" cy="8" r="5.5"/><path d="M8 5v3.2l2 1.3"/></svg>`;
+function tickHtml(s){ return s === "sending" ? TICKW : s === "sent" ? TICK1 : TICK2; }
+
 async function renderInbox(){
   $("main").innerHTML = `<div class="empty">Loading…</div>`;
   const [{ data, error }, { data: fa }] = await Promise.all([
-    sb.from("messages").select("id,sender,receiver,body,created_at,read_at").or(`sender.eq.${me.id},receiver.eq.${me.id}`).order("created_at", { ascending: false }).limit(300),
+    sb.from("messages").select("*").or(`sender.eq.${me.id},receiver.eq.${me.id}`).order("created_at", { ascending: false }).limit(300),
     sb.from("friendships").select("requester,addressee").eq("status", "accepted")
   ]);
   if (!(cur && cur.t === "inbox")) return;
@@ -599,7 +658,7 @@ async function renderInbox(){
     h += [...conv.values()].map(c => {
       const p = ppl[c.id]; if (!p) return "";
       const mine = c.last.sender === me.id;
-      return `<div class="card crow${c.unread ? " un" : ""}" onclick="openChat('${c.id}')">${avatar(p.name, true, p.avatar_url)}<div class="mid"><div class="top"><span class="name">${esc(p.name)}</span><span class="meta">${ago(c.last.created_at)}</span></div><div class="last">${mine ? "You: " : ""}${esc(c.last.body)}</div></div>${c.unread ? `<span class="ubadge">${c.unread > 9 ? "9+" : c.unread}</span>` : ""}</div>`;
+      return `<div class="card crow${c.unread ? " un" : ""}" onclick="openChat('${c.id}')">${avatar(p.name, true, p.avatar_url)}<div class="mid"><div class="top"><span class="name">${esc(p.name)}</span><span class="meta">${ago(c.last.created_at)}</span></div><div class="last">${mine ? `<span class="tkl s-${msgState(c.last)}">${tickHtml(msgState(c.last))}</span>` : ""}${esc(c.last.body)}</div></div>${c.unread ? `<span class="ubadge">${c.unread > 9 ? "9+" : c.unread}</span>` : ""}</div>`;
     }).join("");
   } else {
     h += `<div class="empty">No messages yet. Pick a friend below to start chatting.</div>`;
@@ -614,7 +673,7 @@ async function renderInbox(){
 }
 async function renderChat(id){
   stopChatPoll();
-  chatId = id; chatKey = "";
+  chatId = id; chatKey = ""; chatServer = []; chatPending = [];
   $("main").innerHTML = `<div class="chat"><div class="chat-top"><button class="bk" onclick="goBack()" aria-label="Back">${ICON_BACK}</button><div id="chat-who" class="chat-who"></div></div><div id="chat-list" class="chat-list"><div class="empty">Loading…</div></div><div id="chat-foot"></div></div>`;
   const [{ data: u }, { data: f }] = await Promise.all([
     sb.from("profiles").select("id,name,avatar_url").eq("id", id).maybeSingle(),
@@ -629,48 +688,57 @@ async function renderChat(id){
     ? `<div class="chat-bar"><textarea id="chat-in" rows="1" maxlength="1000" placeholder="Message…" aria-label="Message" oninput="this.style.height='auto';this.style.height=Math.min(120,Math.max(46,this.scrollHeight))+'px'" onfocus="setTimeout(chatBottom,350)"></textarea><button class="btn send" id="chat-send" onclick="sendChat()" aria-label="Send">${ICON_SEND}</button></div>`
     : `<div class="chat-note">You can only message people who are your friends.</div>`;
   await loadChat(true);
-  chatPoll = setInterval(() => { if (!document.hidden) loadChat(false); }, 3000);
+  chatPoll = setInterval(() => { if (!document.hidden) loadChat(false); }, rtOk ? 6000 : 2500);
 }
 function chatBottom(){ const l = $("chat-list"); if (l) l.scrollTop = l.scrollHeight; }
+function drawChat(first){
+  const list = $("chat-list"); if (!list) return;
+  const msgs = [...chatServer, ...chatPending];
+  const key = msgs.map(m => m.id + ":" + msgState(m.sender === me.id ? m : {})).join(",");
+  if (!first && key === chatKey) return;
+  chatKey = key;
+  const near = list.scrollHeight - list.scrollTop - list.clientHeight < 90;
+  let html = "", lastDay = "";
+  if (!msgs.length) html = `<div class="empty" style="margin:auto">Say hi 👋</div>`;
+  msgs.forEach(m => {
+    const d = dayLabel(m.created_at);
+    if (d !== lastDay){ html += `<div class="dsep">${esc(d)}</div>`; lastDay = d; }
+    const mine = m.sender === me.id, st = mine ? msgState(m) : "";
+    html += `<div class="msg ${mine ? "me" : "them"}">${esc(m.body)}<i>${clock(m.created_at)}${mine ? `<span class="tkl s-${st}">${tickHtml(st)}</span>` : ""}</i></div>`;
+  });
+  const last = msgs[msgs.length - 1];
+  if (last && last.sender === me.id){
+    const st = msgState(last);
+    html += `<div class="seen s-${st}">${st === "sending" ? "Sending…" : st === "sent" ? "Sent" : st === "delivered" ? "Delivered" : "Seen"}</div>`;
+  }
+  list.innerHTML = html;
+  if (first || near || (last && last.sender === me.id)) chatBottom();
+}
 async function loadChat(first){
   const id = chatId;
-  const { data, error } = await sb.from("messages").select("id,sender,receiver,body,created_at,read_at")
+  const { data, error } = await sb.from("messages").select("*")
     .or(`and(sender.eq.${me.id},receiver.eq.${id}),and(sender.eq.${id},receiver.eq.${me.id})`)
     .order("created_at", { ascending: false }).limit(100);
   if (!(cur && cur.t === "chat" && cur.id === id)) return;
   const list = $("chat-list"); if (!list) return;
   if (error){ if (first) list.innerHTML = `<div class="empty">${esc(msgErr(error.message))}</div>`; return; }
-  const msgs = data.slice().reverse();
-  const key = msgs.map(m => m.id + (m.read_at ? "r" : "")).join(",");
-  if (first || key !== chatKey){
-    chatKey = key;
-    const near = list.scrollHeight - list.scrollTop - list.clientHeight < 90;
-    let html = "", lastDay = "";
-    if (!msgs.length) html = `<div class="empty" style="margin:auto">Say hi 👋</div>`;
-    msgs.forEach(m => {
-      const d = dayLabel(m.created_at);
-      if (d !== lastDay){ html += `<div class="dsep">${esc(d)}</div>`; lastDay = d; }
-      html += `<div class="msg ${m.sender === me.id ? "me" : "them"}">${esc(m.body)}<i>${clock(m.created_at)}</i></div>`;
-    });
-    const lastMine = msgs.length && msgs[msgs.length - 1].sender === me.id ? msgs[msgs.length - 1] : null;
-    if (lastMine && lastMine.read_at) html += `<div class="seen">Seen</div>`;
-    list.innerHTML = html;
-    if (first || near || lastMine) chatBottom();
-  }
-  if (msgs.some(m => m.sender === id && !m.read_at)){
-    await sb.from("messages").update({ read_at: new Date().toISOString() }).eq("sender", id).eq("receiver", me.id).is("read_at", null);
+  chatServer = data.slice().reverse();
+  drawChat(first);
+  if (chatServer.some(m => m.sender === id && !m.read_at)){
+    await sb.from("messages").update({ read_at: new Date().toISOString(), delivered_at: new Date().toISOString() }).eq("sender", id).eq("receiver", me.id).is("read_at", null);
     refreshBell();
   }
 }
 async function sendChat(){
   const el = $("chat-in"), body = el && el.value.trim();
   if (!body) return;
-  const btn = $("chat-send"); btn.disabled = true;
-  const { error } = await sb.from("messages").insert({ sender: me.id, receiver: chatId, body });
-  btn.disabled = false;
-  if (error) return alert(msgErr(error.message));
-  el.value = ""; el.style.height = "46px";
-  await loadChat(false); chatBottom(); el.focus();
+  unlockAudio();
+  const tmp = { id: "t" + Date.now(), sender: me.id, receiver: chatId, body, created_at: new Date().toISOString(), pending: true };
+  chatPending.push(tmp); el.value = ""; el.style.height = "46px"; drawChat(true); el.focus();
+  const { data, error } = await sb.from("messages").insert({ sender: me.id, receiver: chatId, body }).select("*").single();
+  chatPending = chatPending.filter(m => m !== tmp);
+  if (error){ drawChat(true); el.value = body; return alert(msgErr(error.message)); }
+  chatServer.push(data); drawChat(true); tone("out");
 }
 
 /* ---------- start ---------- */
@@ -680,5 +748,5 @@ async function sendChat(){
   if (recovering) { $("reset").classList.remove("hidden"); return; }
   if (session) boot(session.user); else $("auth").classList.remove("hidden");
 })();
-setInterval(() => { if (me && !document.hidden) refreshBell(); }, 20000);
+setInterval(() => { if (me && !document.hidden) refreshBell(); }, 10000);
 if ("serviceWorker" in navigator) navigator.serviceWorker.register("sw.js").catch(() => {});
