@@ -176,12 +176,12 @@ let feed = [], openCm = new Set(), cmts = {}, pickedFile = null, previewUrl = nu
 
 async function renderHome(){
   pickedFile = null;
-  $("main").innerHTML = `<div class="card comp"><div class="row"><span class="avwrap">${avatar(me.name, false, me.avatar_url)}<i class="dot"></i></span><textarea id="p-body" rows="1" maxlength="1000" placeholder="What is on your mind?" aria-label="New post" oninput="this.style.height='auto';this.style.height=Math.max(56,this.scrollHeight)+'px'" style="flex:1"></textarea></div><div id="prev"></div><input id="p-file" type="file" accept="image/*" class="hidden" onchange="pickPhoto(this)">
+  $("main").innerHTML = `<div class="card comp"><div class="row"><span class="avwrap">${avatar(me.name, false, me.avatar_url)}<i class="dot"></i></span><textarea id="p-body" rows="1" maxlength="1000" placeholder="What is on your mind?" aria-label="New post" oninput="this.style.height='auto';this.style.height=Math.max(40,this.scrollHeight)+'px'" onfocus="this.closest('.comp').classList.add('typing')" onblur="if(!this.value)this.closest('.comp').classList.remove('typing')" style="flex:1"></textarea>
   <div class="cbar">
-   <button onclick="$('p-file').click()"><svg viewBox="0 0 24 24"><path d="M4 8h3l2-3h6l2 3h3a1 1 0 0 1 1 1v10a1 1 0 0 1-1 1H4a1 1 0 0 1-1-1V9a1 1 0 0 1 1-1z"/><circle cx="12" cy="13.5" r="3.5"/></svg>Photo</button>
-   <button onclick="go('reels')"><svg viewBox="0 0 24 24"><rect x="3" y="9" width="18" height="11" rx="2.5"/><path d="M3.5 9L5 4.5l4.5 1L8 9M10.5 9L12 5.5l4.5 1L15 9M17 9l1.5-3.5L21 6"/><path d="M10.3 12.5v4.2l3.8-2.1z" fill="currentColor"/></svg>Reels</button>
-   <button id="p-go" onclick="addPost()"><svg viewBox="0 0 24 24"><path d="M4 20l1-4L16 5l3 3L8 19zM14 7l3 3"/></svg>Post</button>
-  </div></div><div id="feed"><div class="empty">Loading…</div></div>`;
+   <button onclick="$('p-file').click()"><svg viewBox="0 0 24 24"><path d="M4 8h3l2-3h6l2 3h3a1 1 0 0 1 1 1v10a1 1 0 0 1-1 1H4a1 1 0 0 1-1-1V9a1 1 0 0 1 1-1z" fill="currentColor"/><circle cx="12" cy="13.5" r="3.5" fill="#fff"/></svg>Photo</button>
+   <button onclick="go('reels')"><svg viewBox="0 0 24 24"><rect x="3" y="9" width="18" height="11" rx="2.5" fill="currentColor"/><path d="M3.5 9L5 4.5l4.5 1L8 9M10.5 9L12 5.5l4.5 1L15 9M17 9l1.5-3.5L21 6" fill="currentColor"/><path d="M10.3 12.5v4.2l3.8-2.1z" fill="#fff" stroke="none"/></svg>Reels</button>
+   <button id="p-go" onclick="addPost()"><svg viewBox="0 0 24 24"><path d="M4 20l1-4L16 5l3 3L8 19z" fill="currentColor"/><path d="M14 7l3 3" stroke="#fff"/></svg>Post</button>
+  </div></div><div id="prev"></div><input id="p-file" type="file" accept="image/*" class="hidden" onchange="pickPhoto(this)"></div><div id="feed"><div class="empty">Loading…</div></div>`;
   loadFeed(null);
 }
 async function loadFeed(userId, ids){
