@@ -19,7 +19,7 @@ The publishable key (`sb_publishable_...`) is already inside `index.html`. Never
 ## Files
 - `index.html`: the whole app.
 - `manifest.webmanifest`: PWA manifest.
-- `sw.js`: service worker (network first, cache fallback). Bump `CACHE` (e.g. `circle-v3`) when you want phones to drop old files.
+- `sw.js`: service worker (network first, cache fallback). Bump `CACHE` (now `circle-v3`) when you want phones to drop old files.
 - `icon.svg`: app icon.
 - `migration-2.sql`: likes, comments, photos, delete, profile edit (run once).
 - `migration-3.sql`: profile photo column + makes the photo bucket public (run once).
@@ -33,7 +33,8 @@ The publishable key (`sb_publishable_...`) is already inside `index.html`. Never
 - Friends tab: requests (Confirm / Delete), your friends, people you may know (Add friend), requests you sent.
 - Header: search people by name, bell with count of incoming friend requests, own avatar.
 - Light theme only (dark mode was removed on purpose; the owner does not want black).
-- Floating bottom tab bar: Home, Friends, Me.
+- Floating bottom tab bar: Home, Friends, Reels, Marketplace, Me. Reels and Marketplace are "coming soon" placeholder screens.
+- Look follows the mockup: wavy blue header fading into the page, rounded cards, stacked reaction icons (cosmetic, every like counts as a Like), blue tick for names listed in `VERIFIED` in `index.html`.
 
 ## IMPORTANT: order when updating
 When a version needs new SQL, run the SQL first, then upload the new `index.html`. The new page reads columns that must exist (for example `profiles.avatar_url`).
@@ -101,7 +102,7 @@ Note: `likes` and `comments` both link posts and profiles, so any query that emb
 ## Known limitations / to-do
 1. The feed shows posts from everyone, not only friends. Fix: filter posts to the user's accepted friends and themselves.
 2. Saved posts live only on the phone (`localStorage`). Move to a `saves` table if they should follow the account.
-3. No Reels or Marketplace (they appeared in a mockup but do not exist).
+3. Reels and Marketplace are placeholders only. Real reactions (heart, wow) and a shares count would need new DB columns/tables.
 4. No chat, no notification list (the bell only counts friend requests), no reactions other than Like.
 5. Icon is SVG only. Some phones want PNG icons (192 and 512) for a perfect install icon.
 6. Possible later step: wrap as a native app (Capacitor or Expo) for the Play Store.
