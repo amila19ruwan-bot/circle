@@ -750,3 +750,17 @@ nav button{font-size:12px;color:#1B2A66}
 @media(max-width:400px){.comp textarea{font-size:9.5px;padding:10px 6px}}
 .fab-set svg{fill:none;stroke:#fff;stroke-width:2.2}
 .fab-set svg circle{fill:none;stroke:#fff}
+
+/* v13: header bottom edge is perfectly straight (no wave) */
+header::after,.chat-top::after,#app[data-view=inbox] header::after{display:none!important;content:none!important}
+header,.chat-top{border-radius:0!important}
+
+/* v14: header like the mockup - straight bottom edge, softly rounded corners, glow underneath (no hard wave) */
+header,.chat-top{border-radius:0 0 26px 26px!important;box-shadow:0 14px 26px -8px rgba(60,115,255,.38)!important}
+#app[data-view=inbox] header{border-radius:0!important;box-shadow:none!important}
+/* softer background waves: no hard white line */
+.bgwave path[fill=none]{display:none}
+.bgwave{filter:blur(.8px)}
+/* send button: glow instead of white ring */
+.chat-bar .send{border:0;box-shadow:0 8px 22px rgba(110,70,255,.45),inset 0 2px 5px rgba(255,255,255,.5)}
+.cb-field{box-shadow:0 6px 22px rgba(60,90,230,.16)}
