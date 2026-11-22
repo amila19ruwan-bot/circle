@@ -13,16 +13,21 @@
 :root{--blue:#2457D6;--blue2:#5B8CFF;--ink:#1F2A44;--mute:#667085;--line:#E6E9EF;--bg:#EEF1F7;--soft:#EEF1F6;--card:#fff;--tint:#E6EDFC;--tinttx:#1A45B0;--shadow:0 1px 2px rgba(16,24,40,.06),0 4px 14px rgba(16,24,40,.05)}
 *{box-sizing:border-box;-webkit-tap-highlight-color:transparent}
 html,body{height:100%;margin:0}
-body{font:400 15px/1.45 system-ui,-apple-system,"Segoe UI",Roboto,sans-serif;background:var(--bg);color:var(--ink);padding-top:env(safe-area-inset-top)}
+body{font:400 15px/1.45 system-ui,-apple-system,"Segoe UI",Roboto,sans-serif;background:var(--bg);color:var(--ink)}
 button,input,textarea{font:inherit;color:inherit}
 button{cursor:pointer;transition:transform .08s,opacity .15s}
 button:active{transform:scale(.97)}
 .hidden{display:none!important}
 #app{display:flex;flex-direction:column;height:100%;max-width:520px;margin:0 auto;background:var(--bg)}
-header{height:60px;background:linear-gradient(135deg,var(--blue),var(--blue2));padding:0 18px;display:flex;align-items:center;flex:none;box-shadow:0 2px 12px rgba(36,87,214,.35);position:relative;z-index:2}
-header h1{margin:0;font-size:22px;font-weight:800;letter-spacing:-.3px;color:#fff;display:flex;align-items:center;gap:10px}
-header h1::before{content:"";width:22px;height:22px;border-radius:50%;border:3px solid #fff;box-shadow:inset 0 0 0 4px transparent;background:radial-gradient(circle,#fff 0 3px,transparent 3.5px)}
-main{flex:1;overflow-y:auto;padding:12px 12px 20px;display:flex;flex-direction:column;gap:12px}
+header{background:radial-gradient(circle at 78% -10%,rgba(255,255,255,.28),transparent 42%),radial-gradient(circle at 100% 100%,rgba(120,170,255,.45),transparent 50%),linear-gradient(135deg,#1747C9,#2F6BFF 60%,#4C8DFF);padding:calc(10px + env(safe-area-inset-top)) 16px 22px;display:flex;align-items:center;gap:10px;flex:none;border-radius:0 0 26px 26px;position:relative;z-index:2;box-shadow:0 6px 20px rgba(36,87,214,.3)}
+header h1{margin:0;font-size:28px;font-weight:800;letter-spacing:-.5px;color:#fff;display:flex;align-items:center;gap:10px;flex:1;min-width:0}
+header h1::before{content:"";flex:none;width:34px;height:34px;border-radius:50%;border:4px solid #fff;background:radial-gradient(circle,#fff 0 4px,transparent 4.5px)}
+.hbtns{display:flex;align-items:center;gap:8px}
+.hb{position:relative;width:44px;height:44px;border-radius:50%;border:0;background:rgba(255,255,255,.18);color:#fff;display:flex;align-items:center;justify-content:center;padding:0}
+.hb svg{width:24px;height:24px;fill:none;stroke:currentColor;stroke-width:2;stroke-linecap:round;stroke-linejoin:round}
+.badge{position:absolute;top:-2px;right:-2px;min-width:20px;height:20px;border-radius:10px;background:#F04438;color:#fff;font-size:12px;font-weight:700;display:flex;align-items:center;justify-content:center;padding:0 5px;border:2px solid #2F6BFF}
+.hav .av{width:46px;height:46px;border:2.5px solid rgba(255,255,255,.85);font-size:16px}
+main{flex:1;overflow-y:auto;padding:14px 12px 20px;display:flex;flex-direction:column;gap:12px}
 #feed{display:flex;flex-direction:column;gap:12px}
 .card{background:var(--card);padding:14px 16px;border-radius:18px;box-shadow:var(--shadow)}
 #feed .card{margin-bottom:0!important}
@@ -44,10 +49,10 @@ textarea:focus,input:focus{outline:0;border-color:var(--blue);box-shadow:0 0 0 4
 textarea{resize:none;min-height:84px}
 ::placeholder{color:var(--mute);opacity:.8}
 .empty{padding:28px 16px;text-align:center;color:var(--mute);background:var(--card);border-radius:18px;box-shadow:var(--shadow)}
-nav{display:flex;background:var(--card);border-top:1px solid var(--line);padding-bottom:env(safe-area-inset-bottom);flex:none}
-nav button{flex:1;height:64px;border:0;background:none;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:3px;font-size:11px;font-weight:700;color:var(--mute);position:relative}
+nav{display:flex;background:var(--card);margin:0 10px calc(10px + env(safe-area-inset-bottom));border-radius:26px;box-shadow:0 4px 24px rgba(16,24,40,.16);flex:none;overflow:hidden}
+nav button{flex:1;height:64px;border:0;background:none;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:3px;font-size:12px;font-weight:700;color:var(--mute);position:relative}
 nav button.on{color:var(--blue)}
-nav button.on::before{content:"";position:absolute;top:0;width:32px;height:3px;border-radius:0 0 3px 3px;background:var(--blue)}
+nav button.on::before{content:"";position:absolute;top:0;width:36px;height:4px;border-radius:0 0 4px 4px;background:var(--blue)}
 nav svg{width:25px;height:25px;fill:none;stroke:currentColor;stroke-width:2;stroke-linecap:round;stroke-linejoin:round}
 body:has(#auth:not(.hidden)),body:has(#reset:not(.hidden)){background:linear-gradient(160deg,var(--blue),var(--blue2) 45%,var(--bg) 45%)}
 #auth,#reset{width:calc(100% - 32px);max-width:420px;margin:40px auto 0;padding:28px 22px;display:flex;flex-direction:column;gap:12px;background:var(--card);border-radius:24px;box-shadow:0 10px 40px rgba(16,24,40,.2)}
@@ -58,10 +63,14 @@ body:has(#auth:not(.hidden)),body:has(#reset:not(.hidden)){background:linear-gra
 .link{background:none;border:0;color:var(--blue);font-weight:700;min-height:44px}
 .post-img{display:block;width:100%;max-height:460px;object-fit:cover;border-radius:14px;margin-top:12px;background:var(--soft)}
 .acts{display:flex;gap:4px;margin-top:10px;border-top:1px solid var(--line);padding-top:4px}
-.act{flex:1;min-height:44px;border:0;background:none;display:flex;align-items:center;justify-content:center;gap:6px;font-weight:700;font-size:14px;color:var(--mute);border-radius:12px}
+.act{flex:1;min-width:0;min-height:46px;border:0;background:none;display:flex;align-items:center;justify-content:center;gap:4px;padding:0;font-weight:700;font-size:14px;color:var(--mute);border-radius:12px}
 .act:active{background:var(--soft)}
-.act.on{color:#E0245E}
-.act svg{width:22px;height:22px;fill:none;stroke:currentColor;stroke-width:2;stroke-linecap:round;stroke-linejoin:round}
+.act.on{color:var(--blue)}
+.act.sv{color:var(--blue)}
+.act.sv svg{fill:currentColor}
+.act span{font-size:12.5px}
+.acts{gap:0}
+.act svg{width:21px;height:21px;flex:none;fill:none;stroke:currentColor;stroke-width:2;stroke-linecap:round;stroke-linejoin:round}
 .act.on svg{fill:currentColor}
 .del{margin-left:auto;background:none;border:0;color:var(--mute);min-height:44px;min-width:44px;font-size:13px;font-weight:600}
 .cm{display:flex;gap:8px;margin-top:10px}
@@ -82,6 +91,20 @@ img.av{object-fit:cover;background:var(--soft)}
 .back{background:none;border:0;color:var(--blue);font-weight:700;min-height:44px;padding:0 4px;text-align:left;align-self:flex-start}
 .pf{display:flex;flex-direction:column;align-items:center;text-align:center;gap:4px}
 .pf .nm{font-size:22px;font-weight:800;margin-top:8px}
+#feed .acts{border-top:1px solid var(--line)}
+.ring{flex:none;padding:2.5px;border-radius:50%;background:conic-gradient(#2457D6,#7FA6FF,#F2A94B,#2FA36B,#2457D6)}
+.ring .av{border:2.5px solid var(--card);width:42px;height:42px}
+.react{display:flex;justify-content:space-between;align-items:center;margin-top:12px;font-size:14px;color:var(--mute)}
+.lkc{display:inline-flex;width:24px;height:24px;border-radius:50%;background:var(--blue);color:#fff;align-items:center;justify-content:center;vertical-align:middle;margin-right:6px}
+.lkc svg{width:14px;height:14px;fill:currentColor}
+.comp .row{align-items:flex-start}
+.comp textarea{min-height:46px;height:46px;border:0;background:var(--soft);border-radius:24px;padding:12px 18px;overflow:hidden}
+.cbar{display:flex;margin-top:12px;border-top:1px solid var(--line);padding-top:6px}
+.cbar button{flex:1;min-height:48px;border:0;background:none;display:flex;align-items:center;justify-content:center;gap:8px;font-weight:700;font-size:15px;border-radius:14px}
+.cbar button+button{border-left:1px solid var(--line);border-radius:0}
+.cbar button:disabled{opacity:.5}
+.cbar svg{width:26px;height:26px;fill:none;stroke-width:2;stroke-linecap:round;stroke-linejoin:round}
+.globe{width:14px;height:14px;fill:none;stroke:currentColor;stroke-width:2;vertical-align:-2px}
 :focus-visible{outline:3px solid #8FB0FF;outline-offset:2px}
 </style>
 </head>
@@ -108,7 +131,14 @@ img.av{object-fit:cover;background:var(--soft)}
 </section>
 
 <div id="app" class="hidden">
-  <header><h1 id="title">Circle</h1></header>
+  <header>
+    <h1 id="title">Circle</h1>
+    <div class="hbtns">
+      <button class="hb" onclick="go('search')" aria-label="Search people"><svg viewBox="0 0 24 24"><circle cx="11" cy="11" r="7"/><path d="M20 20l-3.5-3.5"/></svg></button>
+      <button class="hb" onclick="go('friends')" aria-label="Friend requests"><svg viewBox="0 0 24 24"><path d="M6 8a6 6 0 0 1 12 0c0 7 3 8 3 8H3s3-1 3-8"/><path d="M10 20a2 2 0 0 0 4 0"/></svg><span id="badge" class="badge hidden"></span></button>
+      <span class="hav" id="h-av"></span>
+    </div>
+  </header>
   <main id="main"></main>
   <nav>
     <button id="t-home" onclick="go('home')"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M3 11l9-8 9 8v9a1 1 0 0 1-1 1h-5v-6H9v6H4a1 1 0 0 1-1-1z"/></svg>Home</button>
@@ -202,15 +232,22 @@ async function boot(user){
   }
   $("auth").classList.add("hidden");
   $("app").classList.remove("hidden");
+  updateHeader();
   go("home");
+}
+function updateHeader(){ $("h-av").innerHTML = avatar(me.name, false, me.avatar_url, me.id); }
+async function refreshBell(){
+  const { count } = await sb.from("friendships").select("id", { count: "exact", head: true }).eq("addressee", me.id).eq("status", "pending");
+  const b = $("badge"); b.textContent = count > 9 ? "9+" : count; b.classList.toggle("hidden", !count);
 }
 let prevTab = "home";
 function go(t){
   tab = t;
   ["home","friends","me"].forEach(x => $("t-" + x).classList.toggle("on", x === t));
-  $("title").textContent = t === "home" ? "Circle" : t === "friends" ? "Friends" : "My profile";
+  $("title").textContent = { home: "Circle", friends: "Friends", me: "My profile", search: "Search" }[t];
   $("main").scrollTop = 0;
-  ({ home: renderHome, friends: renderFriends, me: () => renderProfile(me.id) })[t]();
+  refreshBell();
+  ({ home: renderHome, friends: renderFriends, me: () => renderProfile(me.id), search: renderSearch })[t]();
 }
 function openProfile(id){
   if (id === me.id) return go("me");
@@ -224,20 +261,31 @@ function openProfile(id){
 let viewId = null;
 
 /* ---------- home ---------- */
-const ICON_HEART = `<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 21s-8-5.2-8-11a4.5 4.5 0 0 1 8-2.8A4.5 4.5 0 0 1 20 10c0 5.8-8 11-8 11z"/></svg>`;
+const ICON_THUMB = `<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M7 11v9H4a1 1 0 0 1-1-1v-7a1 1 0 0 1 1-1zM7 11l4-8a2.5 2.5 0 0 1 2.5 2.5V9H19a2 2 0 0 1 2 2.3l-1.2 7A2 2 0 0 1 17.8 20H7"/></svg>`;
 const ICON_CHAT = `<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M21 12a8 8 0 0 1-11.5 7.2L3 21l1.8-5.5A8 8 0 1 1 21 12z"/></svg>`;
+const ICON_SHARE = `<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M14 4l7 6-7 6v-4c-6 0-9 2-11 6 1-7 4-11 11-12z"/></svg>`;
+const ICON_SAVE = `<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M6 3h12a1 1 0 0 1 1 1v17l-7-4-7 4V4a1 1 0 0 1 1-1z"/></svg>`;
+const ICON_GLOBE = `<svg class="globe" viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="9"/><path d="M3 12h18M12 3c3 3 3 15 0 18M12 3c-3 3-3 15 0 18"/></svg>`;
+let saved = new Set();
+try { saved = new Set(JSON.parse(localStorage.getItem("circle_saved") || "[]")); } catch (e) {}
 let feed = [], openCm = new Set(), cmts = {}, pickedFile = null, previewUrl = null;
 
 async function renderHome(){
   pickedFile = null;
-  $("main").innerHTML = `<div class="card"><textarea id="p-body" maxlength="1000" placeholder="What is on your mind?" aria-label="New post"></textarea><div id="prev"></div><input id="p-file" type="file" accept="image/*" class="hidden" onchange="pickPhoto(this)"><div class="btns"><button class="btn alt" onclick="$('p-file').click()">📷 Photo</button><button class="btn" id="p-go" onclick="addPost()">Post</button></div></div><div id="feed"><div class="empty">Loading…</div></div>`;
+  $("main").innerHTML = `<div class="card comp"><div class="row">${avatar(me.name, false, me.avatar_url)}<textarea id="p-body" rows="1" maxlength="1000" placeholder="What is on your mind?" aria-label="New post" oninput="this.style.height='auto';this.style.height=Math.max(46,this.scrollHeight)+'px'" style="flex:1"></textarea></div><div id="prev"></div><input id="p-file" type="file" accept="image/*" class="hidden" onchange="pickPhoto(this)">
+  <div class="cbar">
+   <button onclick="$('p-file').click()"><svg viewBox="0 0 24 24" stroke="#2457D6"><path d="M4 8h3l2-3h6l2 3h3a1 1 0 0 1 1 1v10a1 1 0 0 1-1 1H4a1 1 0 0 1-1-1V9a1 1 0 0 1 1-1z"/><circle cx="12" cy="13.5" r="3.5"/></svg>Photo</button>
+   <button onclick="go('friends')"><svg viewBox="0 0 24 24" stroke="#8B5CF6"><circle cx="9" cy="8" r="3.5"/><path d="M2 20c0-3.5 3-6 7-6s7 2.5 7 6"/><circle cx="17" cy="9" r="2.5"/><path d="M18 14c2.5.4 4 2.2 4 5"/></svg>Friends</button>
+   <button id="p-go" onclick="addPost()"><svg viewBox="0 0 24 24" stroke="#F29A1F"><path d="M4 20l1-4L16 5l3 3L8 19zM14 7l3 3"/></svg>Post</button>
+  </div></div><div id="feed"><div class="empty">Loading…</div></div>`;
   loadFeed(null);
 }
-async function loadFeed(userId){
+async function loadFeed(userId, ids){
   let q = sb.from("posts")
     .select("id,user_id,body,image_url,created_at,profiles!user_id(name,avatar_url),likes(user_id),comments(id)")
     .order("created_at", { ascending: false }).limit(50);
   if (userId) q = q.eq("user_id", userId);
+  if (ids){ if (!ids.length){ feed = []; $("feed").innerHTML = `<div class="empty">Nothing saved yet. Tap Save on a post.</div>`; return; } q = q.in("id", ids); }
   const { data, error } = await q;
   if (!$("feed")) return;
   if (error) { $("feed").innerHTML = `<div class="empty">Could not load posts: ${esc(error.message)}</div>`; return; }
@@ -245,7 +293,7 @@ async function loadFeed(userId){
   drawFeed();
 }
 function drawFeed(){
-  $("feed").innerHTML = !feed.length ? `<div class="empty">No posts yet. Write the first one.</div>`
+  $("feed").innerHTML = !feed.length ? `<div class="empty">No posts here yet.</div>`
     : feed.map(postHtml).join("");
 }
 function drawPost(id){
@@ -253,19 +301,33 @@ function drawPost(id){
   if (p && el) el.outerHTML = postHtml(p);
 }
 function postHtml(p){
-  const name = p.profiles && p.profiles.name;
-  const liked = p.likes.some(l => l.user_id === me.id);
+  const name = p.profiles && p.profiles.name, pav = p.profiles && p.profiles.avatar_url;
+  const liked = p.likes.some(l => l.user_id === me.id), n = p.likes.length;
   const count = cmts[p.id] ? cmts[p.id].length : p.comments.length;
-  let h = `<div class="card" id="post-${p.id}" ><div class="row">${avatar(name, false, p.profiles && p.profiles.avatar_url, p.user_id)}<div><div class="name lnk" onclick="openProfile('${p.user_id}')">${esc(name)}</div><div class="meta">${ago(p.created_at)}</div></div>${p.user_id === me.id ? `<button class="del" onclick="delPost(${p.id})" aria-label="Delete post">Delete</button>` : ""}</div>`;
+  let h = `<div class="card" id="post-${p.id}"><div class="row"><div class="ring">${avatar(name, false, pav, p.user_id)}</div><div style="flex:1;min-width:0"><div class="name lnk" onclick="openProfile('${p.user_id}')">${esc(name)}</div><div class="meta">${ago(p.created_at)} · ${ICON_GLOBE}</div></div>${p.user_id === me.id ? `<button class="del" onclick="delPost(${p.id})" aria-label="Delete post" style="font-size:22px;letter-spacing:1px;line-height:1">•••</button>` : ""}</div>`;
   if (p.body) h += `<p class="body">${esc(p.body)}</p>`;
   if (p.image_url) h += `<img class="post-img" src="${esc(p.image_url)}" alt="Photo" loading="lazy">`;
-  h += `<div class="acts"><button class="act ${liked ? "on" : ""}" onclick="toggleLike(${p.id})" aria-label="Like">${ICON_HEART}${p.likes.length || ""}</button><button class="act" onclick="toggleCm(${p.id})" aria-label="Comments">${ICON_CHAT}${count || ""}</button></div>`;
+  if (n || count) h += `<div class="react"><span>${n ? `<span class="lkc">${ICON_THUMB}</span>${n}` : ""}</span><span class="lnk" onclick="toggleCm(${p.id})">${count ? count + (count > 1 ? " comments" : " comment") : ""}</span></div>`;
+  h += `<div class="acts"><button class="act ${liked ? "on" : ""}" onclick="toggleLike(${p.id})" aria-label="Like">${ICON_THUMB}<span>Like</span></button><button class="act" onclick="toggleCm(${p.id})" aria-label="Comment">${ICON_CHAT}<span>Comment</span></button><button class="act" onclick="sharePost(${p.id})" aria-label="Share">${ICON_SHARE}<span>Share</span></button><button class="act ${saved.has(p.id) ? "sv" : ""}" onclick="toggleSave(${p.id})" aria-label="Save">${ICON_SAVE}<span>Save</span></button></div>`;
   if (openCm.has(p.id)){
     const list = cmts[p.id];
     h += list ? list.map(c => `<div class="cm">${avatar(c.profiles && c.profiles.name, false, c.profiles && c.profiles.avatar_url, c.user_id)}<div style="flex:1;min-width:0"><div class="bub"><div class="name lnk" onclick="openProfile('${c.user_id}')">${esc(c.profiles && c.profiles.name)}</div>${esc(c.body)}</div><div class="meta" style="margin:2px 0 0 12px">${ago(c.created_at)}${c.user_id === me.id ? ` · <button class="link" style="min-height:32px;font-size:13px" onclick="delCm(${p.id},${c.id})">Delete</button>` : ""}</div></div></div>`).join("") : `<div class="meta" style="margin-top:10px">Loading…</div>`;
     h += `<div class="cm-form"><input id="c-${p.id}" maxlength="500" placeholder="Write a comment…" aria-label="Write a comment" onkeydown="if(event.key==='Enter')addCm(${p.id})"><button class="btn" onclick="addCm(${p.id})">Send</button></div>`;
   }
   return h + `</div>`;
+}
+function toggleSave(id){
+  saved.has(id) ? saved.delete(id) : saved.add(id);
+  try { localStorage.setItem("circle_saved", JSON.stringify([...saved])); } catch (e) {}
+  drawPost(id);
+}
+async function sharePost(id){
+  const p = feed.find(x => x.id === id); if (!p) return;
+  const data = { title: "Circle", text: (p.body || "A photo on Circle").slice(0, 200), url: location.origin + "/" };
+  try {
+    if (navigator.share) await navigator.share(data);
+    else { await navigator.clipboard.writeText(data.url); alert("Link copied"); }
+  } catch (e) {}
 }
 async function toggleLike(id){
   const p = feed.find(x => x.id === id); if (!p) return;
@@ -335,17 +397,17 @@ async function shrink(file, max = 1280){
 async function addPost(){
   const body = $("p-body").value.trim();
   if (!body && !pickedFile) return;
-  const btn = $("p-go"); btn.disabled = true; btn.textContent = "Posting…";
+  const btn = $("p-go"); btn.disabled = true;
   let image_url = null;
   if (pickedFile){
     const blob = await shrink(pickedFile);
     const path = `${me.id}/${Date.now()}.jpg`;
     const { error: ue } = await sb.storage.from(BUCKET).upload(path, blob, { contentType: "image/jpeg" });
-    if (ue){ btn.disabled = false; btn.textContent = "Post"; return alert("Photo upload failed: " + ue.message); }
+    if (ue){ btn.disabled = false; return alert("Photo upload failed: " + ue.message); }
     image_url = sb.storage.from(BUCKET).getPublicUrl(path).data.publicUrl;
   }
   const { error } = await sb.from("posts").insert({ user_id: me.id, body, image_url });
-  if (error){ btn.disabled = false; btn.textContent = "Post"; return alert(error.message); }
+  if (error){ btn.disabled = false; return alert(error.message); }
   renderHome();
 }
 
@@ -385,6 +447,7 @@ async function answer(id, status){
   const { error } = await sb.from("friendships").update({ status }).eq("id", id);
   if (error) alert(error.message);
   tab === "profile" ? renderProfile(viewId) : renderFriends();
+  refreshBell();
 }
 
 /* ---------- me ---------- */
@@ -422,9 +485,11 @@ async function renderProfile(id){
     <div id="m-msg" class="meta" style="min-height:20px;margin-top:6px"></div>
     <div class="btns"><button class="btn" onclick="saveProfile()">Save</button></div></div>`;
   }
+  if (mine) h += `<div class="card"><button class="btn alt" style="width:100%" onclick="openSaved()">🔖 Saved posts (${saved.size})</button></div>`;
   h += `<h2 class="h2">${mine ? "My posts" : "Posts"}</h2><div id="feed"><div class="empty">Loading…</div></div>`;
   if (mine) h += `<div class="card"><button class="btn alt" onclick="logout()">Log out</button></div>`;
   $("main").innerHTML = h;
+  if (mine) updateHeader();
   loadFeed(id);
 }
 async function saveProfile(){
@@ -457,6 +522,31 @@ async function setAvatar(input){
   me = data;
   if (old){ const i = old.indexOf("/" + BUCKET + "/"); if (i > -1) sb.storage.from(BUCKET).remove([decodeURIComponent(old.slice(i + BUCKET.length + 2))]); }
   renderProfile(me.id);
+}
+
+/* ---------- search + saved ---------- */
+function renderSearch(){
+  $("main").innerHTML = `<div class="card"><input id="s-q" placeholder="Search people by name…" oninput="searchSoon()" aria-label="Search people" autocomplete="off"></div><div id="s-res"><div class="empty">Type a name to find people.</div></div>`;
+  $("s-q").focus();
+}
+let searchT;
+function searchSoon(){ clearTimeout(searchT); searchT = setTimeout(doSearch, 250); }
+async function doSearch(){
+  const box = $("s-q"); if (!box) return;
+  const q = box.value.trim().replace(/[%_,()]/g, "");
+  if (!q){ $("s-res").innerHTML = `<div class="empty">Type a name to find people.</div>`; return; }
+  const { data, error } = await sb.from("profiles").select("id,name,bio,avatar_url").ilike("name", "%" + q + "%").limit(20);
+  if (!$("s-res") || tab !== "search") return;
+  $("s-res").innerHTML = error ? `<div class="empty">${esc(error.message)}</div>`
+    : !data.length ? `<div class="empty">No one found.</div>`
+    : data.map(u => `<div class="card row lnk" style="margin-bottom:10px" onclick="openProfile('${u.id}')">${avatar(u.name, true, u.avatar_url)}<div><div class="name">${esc(u.name)}</div>${u.bio ? `<div class="meta">${esc(u.bio)}</div>` : ""}</div></div>`).join("");
+}
+function openSaved(){
+  tab = "saved";
+  ["home","friends","me"].forEach(x => $("t-" + x).classList.remove("on"));
+  $("title").textContent = "Saved";
+  $("main").innerHTML = `<button class="back" onclick="go('me')">‹ Back</button><div id="feed"><div class="empty">Loading…</div></div>`;
+  loadFeed(null, [...saved]);
 }
 
 /* ---------- start ---------- */
