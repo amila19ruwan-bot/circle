@@ -197,7 +197,7 @@ async function renderHome(){
   pickedFile = null;
   $("main").innerHTML = `<div class="card"><textarea id="p-body" maxlength="1000" placeholder="What is on your mind?" aria-label="New post"></textarea><div id="prev"></div><input id="p-file" type="file" accept="image/*" class="hidden" onchange="pickPhoto(this)"><div class="btns"><button class="btn alt" onclick="$('p-file').click()">📷 Photo</button><button class="btn" id="p-go" onclick="addPost()">Post</button></div></div><div id="feed"><div class="empty">Loading…</div></div>`;
   const { data, error } = await sb.from("posts")
-    .select("id,user_id,body,image_url,created_at,profiles(name),likes(user_id),comments(id)")
+    .select("id,user_id,body,image_url,created_at,profiles!user_id(name),likes(user_id),comments(id)")
     .order("created_at", { ascending: false }).limit(50);
   if (tab !== "home") return;
   if (error) { $("feed").innerHTML = `<div class="empty">Could not load posts: ${esc(error.message)}</div>`; return; }
