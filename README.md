@@ -33,6 +33,12 @@ Files are edited directly on github.com (Add file -> Create new file, or open a 
 - Installable PWA (Chrome menu -> Install app / Add to Home screen).
 - Confirmed working: sign up, login and posting text.
 
+## Added in v2 (run `migration-2.sql` once in the Supabase SQL editor first)
+- Likes and comments on posts (own comments can be deleted).
+- Photos on posts (picked from the phone gallery, shrunk to 1280 px, stored in Supabase Storage bucket `post-images`).
+- Delete own posts (also removes the photo), edit name and bio on the Me screen.
+- Password reset: "Forgot password?" on the login screen sends an email; the link opens a new-password screen. Redirect URL in Supabase must include the Vercel site URL (see below).
+
 ## Not tested yet
 - The Friends screen with two accounts (need a second account, e.g. in an Incognito tab).
 
@@ -97,12 +103,7 @@ Friend request statuses: `pending`, `accepted`, `declined`. A "Delete" on a requ
 
 ## Known limitations / to-do
 1. The feed shows posts from everyone, not only friends. Fix: filter posts to the user's accepted friends and themselves (query `friendships` first, or add a SQL view / policy).
-2. No photos. Add Supabase Storage (bucket for post images), an upload button using the phone gallery, and an `image_url` column on `posts`.
-3. No likes or comments. Add `likes` and `comments` tables with RLS, plus the same `grant` lines.
-4. No profile photo or bio, and no way to edit the name (needs an update policy and grant on `profiles`).
-5. No delete for own posts (needs delete policy and grant).
 6. No chat or notifications.
-7. No password reset screen.
 8. Icon is an SVG only. Some phones want PNG icons (192 and 512) for a perfect install icon.
 9. Possible later step: wrap as a native app (Capacitor or Expo) for the Play Store.
 
