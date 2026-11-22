@@ -19,10 +19,11 @@ The publishable key (`sb_publishable_...`) is already inside `index.html`. Never
 ## Files
 - `index.html`: the whole app.
 - `manifest.webmanifest`: PWA manifest.
-- `sw.js`: service worker (network first, cache fallback). Bump `CACHE` (now `circle-v5`) when you want phones to drop old files.
+- `sw.js`: service worker (network first, cache fallback). Bump `CACHE` (now `circle-v6`) when you want phones to drop old files.
 - `icon.svg`: app icon.
 - `migration-2.sql`: likes, comments, photos, delete, profile edit (run once).
 - `migration-3.sql`: profile photo column + makes the photo bucket public (run once).
+- `migration-5.sql`: unfriend (delete policy on `friendships`) + `messages` table with RLS, friends only (run once). Without it, Unfriend and chat show a "run migration-5.sql" message.
 - `migration-4.sql`: cover photo + intro fields (lives in, works at, studied at, website) on profiles (run once). The app still works without it; cover and intro fields just cannot be saved until it is run.
 
 ## Features
@@ -36,6 +37,9 @@ The publishable key (`sb_publishable_...`) is already inside `index.html`. Never
 - Me tab: own profile page; change profile photo and cover with the camera buttons; Saved posts; log out.
 - Friends tab: requests (Confirm / Delete), your friends, people you may know (Add friend), requests you sent.
 - Header: search people by name, bell with count of incoming friend requests, own avatar.
+- Login page follows the owner's mockup: blue hero with the Circle logo, cursive tagline, "Join Circle Today!" text, the girl photo (embedded as a base64 webp in `index.html`), big Create Account and small Sign In buttons. Tapping either opens the form card (name / email / password, forgot password, back).
+- Unfriend: on a friend's profile and in the Friends list (confirm dialog, deletes the friendship row so they can be re-added later).
+- Messages (friends only): chat icon in the header (red count of unread), Messages screen (conversations + "Start a chat" with friends), full-screen chat with bubbles, day separators, "Seen", and a send box. The chat refreshes every 3 s while open (polling, no realtime setup needed); unread count refreshes every 20 s. Table `messages` (`sender`, `receiver`, `body`, `read_at`); the receiver may only update `read_at`.
 - Light theme only (dark mode was removed on purpose; the owner does not want black).
 - Floating bottom tab bar: Home, Friends, Reels, Marketplace, Me. Reels and Marketplace are "coming soon" placeholder screens.
 - Look follows the mockup: wavy blue header fading into the page, rounded cards, stacked reaction icons (cosmetic, every like counts as a Like), blue tick for names listed in `VERIFIED` in `index.html`.
@@ -107,7 +111,7 @@ Note: `likes` and `comments` both link posts and profiles, so any query that emb
 1. The feed shows posts from everyone, not only friends. Fix: filter posts to the user's accepted friends and themselves.
 2. Saved posts live only on the phone (`localStorage`). Move to a `saves` table if they should follow the account.
 3. Reels and Marketplace are placeholders only. Real reactions (heart, wow) and a shares count would need new DB columns/tables.
-4. No chat, no notification list (the bell only counts friend requests), no reactions other than Like.
+4. Chat has text only (no photos, no delete/unsend, no typing indicator), no notification list (the bell only counts friend requests), no reactions other than Like.
 5. Icon is SVG only. Some phones want PNG icons (192 and 512) for a perfect install icon.
 6. Possible later step: wrap as a native app (Capacitor or Expo) for the Play Store.
 
