@@ -12,41 +12,33 @@ The publishable key (`sb_publishable_...`) is already inside `index.html`. Never
 
 ## Stack
 - Frontend: plain HTML, CSS and JavaScript in one file (`index.html`), no build step.
-- Supabase JS loaded from the jsDelivr CDN (`@supabase/supabase-js@2.45.4`).
-- Backend: Supabase (Auth with email + password, Postgres, row level security).
-- Hosting: Vercel, connected to this GitHub repository. Every commit to the main branch redeploys automatically.
+- Supabase JS from the jsDelivr CDN (`@supabase/supabase-js@2.45.4`).
+- Backend: Supabase (Auth with email + password, Postgres with row level security, Storage).
+- Hosting: Vercel, connected to this GitHub repository. Every commit to the main branch redeploys in about a minute.
 
 ## Files
-- `index.html`: the whole app (login, sign up, Home feed, Friends, Me).
-- `manifest.webmanifest`: PWA manifest (name, colors, icon).
-- `sw.js`: service worker (network first, cache fallback).
-- `icon.svg`: app icon (blue square with a white ring and dot).
+- `index.html`: the whole app.
+- `manifest.webmanifest`: PWA manifest.
+- `sw.js`: service worker (network first, cache fallback). Bump `CACHE` (e.g. `circle-v3`) when you want phones to drop old files.
+- `icon.svg`: app icon.
+- `migration-2.sql`: likes, comments, photos, delete, profile edit (run once).
+- `migration-3.sql`: profile photo column + makes the photo bucket public (run once).
 
-Files are edited directly on github.com (Add file -> Create new file, or open a file and use the pencil icon). Commit, and Vercel redeploys in about a minute.
+## Features
+- Sign up, log in, log out, forgot-password email and new-password screen.
+- Home feed (all posts, newest first, latest 50) with a post box: text and/or a photo from the gallery (shrunk to 1280 px, stored in Storage bucket `post-images`).
+- Each post: avatar ring, name, time, Like (thumbs up), Comment (open/close, delete own), Share (phone share sheet or copy link), Save (kept on this phone only, `localStorage`), delete own post (••• menu).
+- Tap any avatar or name to open that person's profile (photo, bio, friend status/button, their posts).
+- Me tab: change profile photo (camera badge), name, bio; Saved posts; own posts; log out.
+- Friends tab: requests (Confirm / Delete), your friends, people you may know (Add friend), requests you sent.
+- Header: search people by name, bell with count of incoming friend requests, own avatar.
+- Light theme only (dark mode was removed on purpose; the owner does not want black).
+- Floating bottom tab bar: Home, Friends, Me.
 
-## What works now
-- Create account (name, email, password) and log in / log out.
-- A profile row is created automatically on first login.
-- Post text, and see the feed of all posts (newest first, latest 50).
-- Friends screen: send a friend request, see incoming requests with Confirm / Delete, see your friends, see requests you sent.
-- Me screen with log out.
-- Installable PWA (Chrome menu -> Install app / Add to Home screen).
-- Confirmed working: sign up, login and posting text.
+## IMPORTANT: order when updating
+When a version needs new SQL, run the SQL first, then upload the new `index.html`. The new page reads columns that must exist (for example `profiles.avatar_url`).
 
-## Added in v2 (run `migration-2.sql` once in the Supabase SQL editor first)
-- Likes and comments on posts (own comments can be deleted).
-- Photos on posts (picked from the phone gallery, shrunk to 1280 px, stored in Supabase Storage bucket `post-images`).
-- Delete own posts (also removes the photo), edit name and bio on the Me screen.
-- Password reset: "Forgot password?" on the login screen sends an email; the link opens a new-password screen. Redirect URL in Supabase must include the Vercel site URL (see below).
-
-## Not tested yet
-- The Friends screen with two accounts (need a second account, e.g. in an Incognito tab).
-
-## Design
-- Blue (#2457D6) accent, near-black ink (#1B1F27), light grey background (#F4F5F7), white cards, rounded buttons, bottom tab bar with Home / Friends / Me.
-- A Design mockup was made earlier in Claude (Feed and Friends screens); the real app follows it.
-
-## Database (Supabase SQL)
+## Original database (Supabase SQL, first setup)
 
 Run once in the SQL editor. This is already done for the live project.
 
@@ -97,15 +89,22 @@ grant usage, select on all sequences in schema public to authenticated;
 
 Friend request statuses: `pending`, `accepted`, `declined`. A "Delete" on a request sets status to `declined` (there is no delete policy).
 
+## Further database changes (already applied in the live project)
+Run `migration-2.sql` then `migration-3.sql` once each (see the files). They add: `profiles.bio`, `profiles.avatar_url`, `posts.image_url`, tables `likes` and `comments`, update/delete policies, and the public Storage bucket `post-images` where each user may write only inside a folder named with their own user id.
+
+Note: `likes` and `comments` both link posts and profiles, so any query that embeds a profile into a post must name the column, e.g. `profiles!user_id(name)`. Without it Supabase reports "more than one relationship was found".
+
 ## Supabase settings
 - Authentication -> URL Configuration: Site URL should be `https://circle-indol-tau.vercel.app`, and Redirect URLs should include `https://circle-indol-tau.vercel.app/**`. (Confirmation emails used to open a blank page on localhost because this was still the default. Check that it was saved.)
 - Authentication -> Sign In / Providers -> Email: "Confirm email" may be on or off. Free Supabase email sending is rate limited (one request per minute per address, and few per hour), so turn it off while testing, and turn it on again before real use.
 
 ## Known limitations / to-do
-1. The feed shows posts from everyone, not only friends. Fix: filter posts to the user's accepted friends and themselves (query `friendships` first, or add a SQL view / policy).
-6. No chat or notifications.
-8. Icon is an SVG only. Some phones want PNG icons (192 and 512) for a perfect install icon.
-9. Possible later step: wrap as a native app (Capacitor or Expo) for the Play Store.
+1. The feed shows posts from everyone, not only friends. Fix: filter posts to the user's accepted friends and themselves.
+2. Saved posts live only on the phone (`localStorage`). Move to a `saves` table if they should follow the account.
+3. No Reels or Marketplace (they appeared in a mockup but do not exist).
+4. No chat, no notification list (the bell only counts friend requests), no reactions other than Like.
+5. Icon is SVG only. Some phones want PNG icons (192 and 512) for a perfect install icon.
+6. Possible later step: wrap as a native app (Capacitor or Expo) for the Play Store.
 
 ## Notes for whoever continues
 - Whenever a new table is added, also run `grant ... to authenticated` for it and enable row level security with policies.
