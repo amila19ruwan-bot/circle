@@ -569,3 +569,114 @@ nav .badge{top:6px}
 #app[data-view=inbox] .hav .av{width:52px;height:52px}
 .fab-set svg{fill:none;stroke:#fff}
 .fab-set svg circle{fill:none;stroke:#fff}
+
+/* v10: slimmer header, no stray swoosh, status bar colour matches header */
+#app::before{display:none!important}
+header{padding:calc(10px + env(safe-area-inset-top)) 16px 16px;background:radial-gradient(circle at 86% 8%,rgba(255,255,255,.26),transparent 38%),radial-gradient(circle at 100% 100%,rgba(190,110,255,.5),transparent 55%),linear-gradient(120deg,#0B3DD8 0%,#1B5BFA 50%,#5E66FF 80%,#9A52FF 100%)}
+header h1{font-size:36px}
+header h1::before{width:46px;height:46px}
+#hb-search{width:50px;height:50px}
+#hb-chat{width:58px;height:58px}
+main{padding-top:12px}
+.chat-top{background:radial-gradient(circle at 86% 8%,rgba(255,255,255,.26),transparent 38%),radial-gradient(circle at 100% 100%,rgba(190,110,255,.5),transparent 55%),linear-gradient(120deg,#0B3DD8 0%,#1B5BFA 50%,#5E66FF 80%,#9A52FF 100%)}
+#app[data-view=inbox] header{padding-bottom:40px;background:radial-gradient(circle at 86% 6%,rgba(190,130,255,.5),transparent 42%),linear-gradient(180deg,#0B3DD8 0%,#1B5BFA 52%,rgba(60,115,255,0) 100%)}
+
+/* =====================================================================
+   v11 - sizes scaled down to match the mockup proportions
+   ===================================================================== */
+header{padding:calc(6px + env(safe-area-inset-top)) 14px 14px;border-radius:0 0 30px 30px}
+header h1{font-size:28px;gap:8px}
+header h1::before{width:36px;height:36px}
+#hb-search{width:40px;height:40px}
+#hb-search svg{width:20px;height:20px}
+#hb-chat{width:48px;height:48px;border-width:2.5px}
+#hb-chat svg{width:26px;height:26px}
+.badge{min-width:18px;height:18px;font-size:11px;top:-4px;right:-4px}
+main{padding:0 12px 14px;margin-top:-6px;gap:10px}
+#app[data-view=inbox] main{padding-top:0;margin-top:-14px}
+
+/* composer */
+.comp{padding:7px 8px;border-radius:30px;margin-top:10px}
+.comp .av{width:34px;height:34px;font-size:12px}
+.comp textarea{height:36px;min-height:36px;padding:9px 12px;font-size:12px;border-radius:20px}
+.comp .cbar button{min-height:32px;padding:0 9px;font-size:12px;gap:4px}
+.comp .cbar svg{width:16px;height:16px}
+
+/* post */
+.card{border-radius:26px;padding:12px 14px}
+.ring{padding:2.5px}
+.ring .av{width:40px;height:40px;font-size:14px}
+#feed .name{font-size:16px}
+#feed .meta{font-size:12.5px}
+.body{font-size:15px;margin-top:8px}
+.post-img{border-radius:20px;margin-top:10px}
+.react{font-size:13px;margin-top:10px}
+.act{min-height:40px;font-size:13px}
+.act span{font-size:13px}
+.act svg{width:20px;height:20px}
+
+/* nav */
+nav{border-radius:30px;margin:0 12px calc(10px + env(safe-area-inset-bottom))}
+nav button{height:64px;padding:5px 2px 9px;font-size:11.5px}
+nav button svg{width:32px;height:32px;padding:7px}
+#t-reels{margin:3px 3px}
+#t-reels svg{width:38px;height:38px;padding:6px}
+nav button.on::before{bottom:5px;width:40px;height:3px}
+nav .badge{top:4px;right:calc(50% - 24px)}
+
+/* messages list */
+#app[data-view=inbox] header h1{font-size:28px}
+#app[data-view=inbox] header h1::before{width:40px;height:40px}
+#app[data-view=inbox] #hb-new{width:44px;height:44px;border-width:2.5px}
+#app[data-view=inbox] .hav .av{width:46px;height:46px}
+.hav::after{width:14px;height:14px;border-width:2.5px}
+.crow{border-radius:36px;padding:9px 16px 9px 10px;gap:12px}
+.crow .av{width:54px;height:54px;font-size:18px}
+.crow .avwrap .dot{width:15px;height:15px;border-width:2.5px}
+.crow .name{font-size:17px}
+.crow .meta{font-size:12.5px}
+.crow .last{font-size:15px}
+.ubadge{min-width:24px;height:24px;font-size:12px;right:16px;bottom:12px}
+.fab{bottom:calc(46px + env(safe-area-inset-bottom))}
+.fab-bell{width:52px;height:52px}
+.fab-set{width:38px;height:38px}
+.fab-set svg{width:24px;height:24px}
+.fab i{height:30px}
+
+/* chat */
+.chat-top{padding:calc(8px + env(safe-area-inset-top)) 12px 14px;border-radius:0 0 30px 30px}
+.chat-top .bk{width:40px;height:40px}
+.chat-who .av{width:46px;height:46px;font-size:16px}
+.chat-who .odot{width:13px;height:13px;border-width:2.5px}
+.chat-who b{font-size:19px}
+.chat-who small{font-size:13px}
+.chat-act .hb{width:38px;height:38px}
+.chat-act .hb svg{width:18px;height:18px}
+.chat-list{gap:8px;padding:12px}
+.dsep{font-size:13.5px;padding:5px 18px}
+.msg{padding:8px 16px 6px;font-size:15px;border-radius:26px}
+.msg.me,.msg.them{border-bottom-right-radius:26px;border-bottom-left-radius:26px}
+.msg i{font-size:12.5px}
+.msg.emo{font-size:22px;padding:6px 16px 6px;letter-spacing:1px}
+.tk{width:14px;height:14px}
+.tk.tk2{width:19px}
+.seen{font-size:12.5px}
+.cb-field{min-height:48px;border-radius:26px}
+.cb-field textarea,.cb-field textarea:focus{min-height:38px;height:38px;padding:9px 4px;font-size:15px}
+.cb-ico{width:38px;height:38px}
+.cb-ico svg{width:24px;height:24px}
+.chat-bar .send{width:50px;height:50px}
+.chat-bar .send svg{width:22px;height:22px}
+.comp textarea{white-space:pre;text-overflow:ellipsis;padding:9px 8px;font-size:11.5px}
+.comp.typing textarea{white-space:pre-wrap;padding:12px 14px;font-size:16px}
+.comp .cbar button{padding:0 7px;font-size:11.5px}
+.comp .cbar{gap:3px}
+
+/* v11b: header runs full width (no rounded side corners), soft wave along the bottom edge */
+header,.chat-top{border-radius:0!important;box-shadow:none!important}
+header::after,.chat-top::after{display:block!important;content:"";position:absolute;left:0;right:0;bottom:-1px;height:22px;z-index:0;pointer-events:none;
+  background:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 400 22' preserveAspectRatio='none'%3E%3Cpath d='M0 22V13C80 3 160 17 250 11S355 2 400 9V22z' fill='%23F3F6FF'/%3E%3Cpath d='M0 13C80 3 160 17 250 11S355 2 400 9' fill='none' stroke='rgba(255,255,255,.55)' stroke-width='1'/%3E%3C/svg%3E") center/100% 100% no-repeat}
+.chat-top>*{position:relative;z-index:1}
+#app[data-view=inbox] header::after{display:none!important}
+header{padding-bottom:20px}
+.chat-top{padding-bottom:18px}
