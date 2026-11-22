@@ -468,3 +468,104 @@ nav .badge{top:8px;right:calc(50% - 28px)}
 .ptxt{background:linear-gradient(135deg,#2F6BFF,#9B7BFF)}
 #app[data-view=inbox] nav{display:none}
 .chat-bar .send{border:2px solid rgba(255,255,255,.85)}
+
+/* =====================================================================
+   v9 - closer match to the mockups
+   ===================================================================== */
+.bgwave{height:40%;max-height:340px}
+/* pale swoosh that melts the header into the page */
+#app::before{content:"";position:absolute;left:-8%;right:-8%;top:96px;height:150px;z-index:1;pointer-events:none;
+  background:radial-gradient(ellipse 60% 100% at 38% 0,rgba(255,255,255,.95),rgba(205,220,255,.45) 55%,transparent 72%),
+             radial-gradient(ellipse 45% 90% at 100% 0,rgba(190,135,255,.5),transparent 70%),
+             radial-gradient(ellipse 40% 80% at 0 0,rgba(120,190,255,.35),transparent 70%)}
+#app.chatmode::before{top:84px}
+header,.chat-top{position:relative;z-index:3}
+
+/* dark glass buttons */
+.gb,.hb,.chat-top .bk{background:radial-gradient(circle at 35% 22%,rgba(150,190,255,.85),rgba(30,80,240,.55) 62%,rgba(15,50,200,.75));
+  border:2px solid rgba(255,255,255,.6);
+  box-shadow:inset 0 2px 8px rgba(255,255,255,.55),inset 0 -8px 14px rgba(8,30,180,.45),0 6px 16px rgba(10,30,150,.32)}
+#hb-search{width:52px;height:52px}
+#hb-chat{width:64px;height:64px;background:radial-gradient(circle at 35% 22%,rgba(200,170,255,.9),rgba(120,70,255,.75) 55%,rgba(40,70,235,.95));border:3px solid rgba(255,255,255,.85)}
+#hb-chat svg{width:32px;height:32px}
+#hb-new{border-radius:50%;border:3px solid rgba(200,180,255,.85);width:54px;height:54px}
+header{padding-bottom:26px}
+header h1{font-size:38px}
+header h1::before{width:50px;height:50px}
+.hav{position:relative}
+.hav::after{content:"";position:absolute;right:1px;bottom:1px;width:17px;height:17px;border-radius:50%;background:var(--online);border:3px solid #fff}
+.hav .av{width:58px;height:58px;border:3px solid rgba(255,255,255,.85);box-shadow:0 0 0 4px rgba(200,180,255,.4)}
+
+/* Messages header melts into the page (no hard edge) */
+#app[data-view=inbox] header{border-radius:0;box-shadow:none;padding-bottom:44px;
+  background:radial-gradient(circle at 86% 6%,rgba(190,130,255,.5),transparent 42%),linear-gradient(180deg,#0A3BD6 0%,#1B5BFA 52%,rgba(60,115,255,0) 100%)}
+#app[data-view=inbox] header .hwave{opacity:.5}
+#app[data-view=inbox]::before{top:70px}
+#app[data-view=inbox] main{padding-top:0;margin-top:-18px}
+
+/* home composer: one row like the mockup */
+.comp{padding:10px 10px;border-radius:36px}
+.comp .row{align-items:center;gap:6px;flex-wrap:wrap}
+.comp .av{width:40px;height:40px;font-size:14px}
+.comp .avwrap .dot{width:13px;height:13px;border-width:2px}
+.comp textarea{min-width:0;min-height:40px;height:40px;padding:10px 12px;border-radius:22px;font-size:12.5px;line-height:1.25;overflow:hidden}
+.comp .cbar{display:flex;gap:5px;margin:0;padding:0;border:0;flex:none}
+.comp .cbar button{min-height:38px;padding:0 8px;gap:3px;font-size:12.5px;flex:none}
+.comp .cbar svg{width:17px;height:17px;stroke:none;fill:currentColor}
+.comp.typing .row{align-items:flex-start}
+.comp.typing textarea{font-size:16px;flex:1 1 calc(100% - 50px);height:auto;min-height:48px;overflow:auto}
+.comp.typing .cbar{flex:1 1 100%;margin-top:6px}
+.comp.typing .cbar button{flex:1;min-height:46px;font-size:15px}
+.comp.typing .cbar svg{width:22px;height:22px}
+#prev{width:100%}
+
+/* posts */
+.ring{background:linear-gradient(135deg,#0B2FBF,#2F6BFF);padding:3px}
+#feed .name{font-size:20px}
+#feed .meta{font-size:15px}
+
+/* bottom nav: pale circles behind icons, Reels bubble always on */
+nav{border-radius:38px;background:rgba(255,255,255,.9);box-shadow:0 10px 34px rgba(60,70,220,.25),0 0 0 4px rgba(255,255,255,.35)}
+nav button{height:78px;gap:2px;padding:6px 2px 10px;font-size:12.5px;color:#243066}
+nav button svg{width:42px;height:42px;padding:9px;border-radius:50%;background:#EAEEFB;box-sizing:border-box}
+nav button.on svg{background:none}
+#t-home.on svg{color:#1F5CF0}
+nav button.on::before{bottom:6px;width:46px}
+#t-reels{background:linear-gradient(180deg,rgba(165,125,255,.30),rgba(110,140,255,.20));box-shadow:inset 0 0 0 1px rgba(255,255,255,.9),0 8px 18px rgba(120,90,255,.28);margin:4px 4px}
+#t-reels svg{background:none;color:#7C3AED;width:44px;height:44px;padding:8px}
+#t-reels.on{margin:4px 4px}
+nav .badge{top:6px}
+
+/* floating bell + gear: no pill, like the mockup */
+.fab{background:none;border:0;box-shadow:none;backdrop-filter:none;-webkit-backdrop-filter:none;padding:0;gap:12px;right:18px;bottom:calc(56px + env(safe-area-inset-bottom))}
+.fab-bell{width:64px;height:64px;background:radial-gradient(circle at 35% 22%,rgba(150,190,255,.85),rgba(25,70,240,.8) 60%,rgba(10,40,190,.95));border:3px solid rgba(255,255,255,.9)!important;box-shadow:inset 0 2px 8px rgba(255,255,255,.5),0 8px 20px rgba(30,60,220,.4)}
+.fab i{height:38px;background:rgba(255,255,255,.85)}
+.fab-set{filter:drop-shadow(0 2px 4px rgba(20,40,160,.4))}
+.fab-set svg{fill:#fff;stroke:#fff}
+.fab-set svg circle{fill:#4D7DFF;stroke:none}
+
+/* chat bubbles: rounder, glossier, vivid blue-to-violet */
+.msg{border-radius:32px}
+.msg.me{background:linear-gradient(115deg,#0A57F7 0%,#2C68FF 48%,#8F4DFF 100%);border-bottom-right-radius:32px;
+  box-shadow:0 10px 24px rgba(90,70,240,.32),inset 0 2px 4px rgba(255,255,255,.4),inset 0 -6px 12px rgba(40,20,160,.25)}
+.msg.them{border-bottom-left-radius:32px}
+.msg.emo{font-size:30px;padding:8px 20px 8px}
+.chat-bar .send{background:radial-gradient(circle at 35% 22%,rgba(160,190,255,.9),rgba(40,90,255,.9) 55%,rgba(130,70,255,.95))}
+.cb-field{background:linear-gradient(180deg,rgba(255,255,255,.97),rgba(240,243,255,.95))}
+
+/* v9 fixes */
+.comp{padding:8px}
+.comp .row{gap:4px}
+.comp .av{width:36px;height:36px;font-size:13px}
+.comp textarea{padding:10px 8px;font-size:11.5px}
+.comp .cbar{gap:4px}
+.comp .cbar button{padding:0 7px;gap:3px;font-size:12px}
+.comp .cbar svg{width:15px;height:15px}
+#app[data-view=inbox] header{z-index:1}
+#app[data-view=inbox]::before{display:none}
+#app[data-view=inbox] header h1{font-size:32px}
+#app[data-view=inbox] header h1::before{width:44px;height:44px}
+#app[data-view=inbox] #hb-new{width:50px;height:50px}
+#app[data-view=inbox] .hav .av{width:52px;height:52px}
+.fab-set svg{fill:none;stroke:#fff}
+.fab-set svg circle{fill:none;stroke:#fff}
