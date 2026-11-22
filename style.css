@@ -296,3 +296,11 @@ main>*{flex-shrink:0}
 .crow .last{white-space:nowrap;overflow:hidden;text-overflow:ellipsis;color:var(--mute);font-size:14.5px}
 .crow.un .last{color:var(--ink);font-weight:700}
 .ubadge{min-width:22px;height:22px;border-radius:11px;background:var(--blue);color:#fff;font-size:12px;font-weight:700;display:flex;align-items:center;justify-content:center;padding:0 6px;flex:none}
+
+.tk{width:14px;height:14px;fill:none;stroke:currentColor;stroke-width:2;stroke-linecap:round;stroke-linejoin:round;vertical-align:-2px}
+.tk.tk2{width:19px}
+.msg i .tkl{margin-left:5px;display:inline-block;opacity:.85}
+.tkl.s-seen{color:#8FF0FF;opacity:1!important}
+.crow .last .tkl{margin-right:5px;color:var(--mute)}
+.crow .last .tkl.s-seen{color:#2F6BFF}
+.seen.s-seen{color:var(--blue);font-weight:700}
