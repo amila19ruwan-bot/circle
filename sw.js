@@ -1,4 +1,4 @@
-const CACHE = "circle-v1";
+const CACHE = "circle-v2";
 self.addEventListener("install", e => {
   e.waitUntil(caches.open(CACHE).then(c => c.addAll(["./", "index.html", "manifest.webmanifest", "icon.svg"])));
   self.skipWaiting();
