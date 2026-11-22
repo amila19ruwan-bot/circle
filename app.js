@@ -9,7 +9,7 @@ const TABS = ["home","friends","reels","market","me"];
 const VERIFIED = ["circle"]; /* names that get the blue tick */
 const $ = id => document.getElementById(id);
 const esc = s => String(s ?? "").replace(/[&<>"']/g, c => ({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
-const COLORS = ["linear-gradient(135deg,#4F7CF0,#7FA6FF)","linear-gradient(135deg,#F2784B,#FFA67A)","linear-gradient(135deg,#2FA36B,#6FD4A0)","linear-gradient(135deg,#8B5CF6,#B794FF)","linear-gradient(135deg,#E5A91A,#FFD369)","linear-gradient(135deg,#E0457B,#FF86AC)"];
+const COLORS = ["radial-gradient(circle at 30% 25%,#4C8DFF,#1747D9 75%)","radial-gradient(circle at 30% 25%,#8E7BFF,#4A35D8 75%)","radial-gradient(circle at 30% 25%,#38BDF8,#1B6BEA 75%)","radial-gradient(circle at 30% 25%,#B26BFF,#6A3AE0 75%)","radial-gradient(circle at 30% 25%,#5B9BFF,#2A4FD6 75%)","radial-gradient(circle at 30% 25%,#7A8CFF,#3B3FD0 75%)"];
 function avatar(name, big, url, uid){
   const n = name || "?";
   const cls = "av " + (big === "xl" ? "xl" : big ? "lg" : "") + (uid ? " lnk" : "");

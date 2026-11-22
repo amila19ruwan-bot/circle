@@ -680,3 +680,73 @@ header::after,.chat-top::after{display:block!important;content:"";position:absol
 #app[data-view=inbox] header::after{display:none!important}
 header{padding-bottom:20px}
 .chat-top{padding-bottom:18px}
+
+/* =====================================================================
+   v12 - fidelity pass against the owner's three screenshots
+   (Home, Messages, Chat). Overrides everything above.
+   ===================================================================== */
+
+/* ---- Home: header ---- */
+#app[data-view=home] header h1{font-size:26px}
+#app[data-view=home] header h1::before{width:34px;height:34px}
+#hb-search{width:38px;height:38px}
+#hb-chat{width:46px;height:46px}
+
+/* ---- Home: composer on ONE row, placeholder never cut ---- */
+.comp{padding:8px 10px;border-radius:34px}
+.comp .row{flex-wrap:nowrap;gap:6px}
+.comp.typing .row{flex-wrap:wrap}
+.comp .av{width:38px;height:38px}
+.comp textarea{flex:1 1 0!important;min-width:0;height:38px;min-height:38px;padding:10px 10px;font-size:11px;border-radius:20px;text-overflow:clip}
+.comp .cbar{gap:5px}
+.comp .cbar button{min-height:36px;padding:0 7px;gap:4px;font-size:11.5px}
+.comp .cbar svg{width:16px;height:16px}
+.comp.typing textarea{flex:1 1 calc(100% - 50px)!important;height:auto;min-height:48px;font-size:16px;padding:12px 14px}
+@media(max-width:400px){
+  .comp{padding:7px 8px}
+  .comp .row{gap:4px}
+  .comp .av{width:32px;height:32px}
+  .comp textarea{font-size:10px;padding:10px 8px}
+  .comp .cbar{gap:3px}
+  .comp .cbar button{padding:0 6px;font-size:10.5px;gap:3px}
+  .comp .cbar svg{width:14px;height:14px}
+}
+@media(max-width:350px){ .comp .av{display:none} }
+
+/* ---- Bottom nav: bigger icons, Reels underline always visible ---- */
+nav button svg{width:34px;height:34px;padding:6px}
+#t-reels svg{width:38px;height:38px;padding:7px}
+#t-reels::before{content:"";position:absolute;bottom:5px;width:40px;height:3px;border-radius:3px;background:linear-gradient(90deg,#1F5CF0,#7C4DFF)}
+nav button{font-size:12px;color:#1B2A66}
+
+/* ---- Messages list ---- */
+#app[data-view=inbox] main{gap:16px}
+#app[data-view=inbox] #hb-new{width:50px;height:50px}
+#app[data-view=inbox] .hav .av{width:50px;height:50px}
+.crow{padding:8px 16px 8px 8px;gap:12px}
+.crow .av{width:60px;height:60px;font-size:20px}
+.crow .name{font-size:18px}
+.crow .last{font-size:16px;color:#2A3670}
+.crow.un .last{font-weight:500;padding-right:38px}
+.ubadge{min-width:26px;height:26px;font-size:13px;right:18px;bottom:14px;background:linear-gradient(180deg,#2D6BFF,#1747E0);box-shadow:none}
+
+/* floating bell + gear: solid white icons, higher up, like the screenshot */
+.fab{bottom:calc(104px + env(safe-area-inset-bottom))}
+.fab-bell{width:50px;height:50px}
+.fab-bell svg{fill:#fff;stroke:#fff;width:26px;height:26px}
+.fab-set svg{fill:#fff;stroke:#fff;width:28px;height:28px}
+.fab-set svg circle{fill:#3F6DFF;stroke:none}
+
+/* ---- Chat ---- */
+.chat-top{padding-bottom:20px}
+.chat-who .av{width:48px;height:48px}
+.chat-who b{font-size:20px}
+.msg.emo{font-size:18px;letter-spacing:1px;padding:8px 18px 6px}
+.chat-bar .send{width:54px;height:54px}
+.seen{color:var(--mute)}
+
+/* v12b */
+.comp textarea{font-size:10.5px;padding:10px 8px}
+@media(max-width:400px){.comp textarea{font-size:9.5px;padding:10px 6px}}
+.fab-set svg{fill:none;stroke:#fff;stroke-width:2.2}
+.fab-set svg circle{fill:none;stroke:#fff}
