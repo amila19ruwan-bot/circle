@@ -24,6 +24,7 @@ The publishable key (`sb_publishable_...`) is already inside `index.html`. Never
 - `migration-2.sql`: likes, comments, photos, delete, profile edit (run once).
 - `migration-3.sql`: profile photo column + makes the photo bucket public (run once).
 - `migration-5.sql`: unfriend (delete policy on `friendships`) + `messages` table with RLS, friends only (run once). Without it, Unfriend and chat show a "run migration-5.sql" message.
+- `migration-chat-v17.sql`: chat photos (`messages.image_url`), `blocks` table + rule that blocks messaging, `messages.hide_seen` (run once, BEFORE uploading v17 files).
 - `migration-4.sql`: cover photo + intro fields (lives in, works at, studied at, website) on profiles (run once). The app still works without it; cover and intro fields just cannot be saved until it is run.
 
 ## Features
@@ -123,3 +124,11 @@ Note: `likes` and `comments` both link posts and profiles, so any query that emb
 - Whenever a new table is added, also run `grant ... to authenticated` for it and enable row level security with policies.
 - Keep UI mobile first (phone width about 390 px) and touch targets at least 44 px.
 - The owner copies code from chat files into GitHub by hand, so give complete files rather than diffs, and one file at a time.
+
+
+## v17 additions
+- Photo icon on Home opens a separate New post page (Gallery / Camera, preview, Post).
+- Settings screen (Me -> Chat settings, or chat ⋯ menu): 6 incoming/sent tones, 6 vibration patterns, each can be Off; toggle to show Sent/Delivered/Seen; toggle to hide my Seen from others. Stored in `localStorage` (`circle_cfg`).
+- Block / Unblock on profiles, in the chat ⋯ menu and in Settings (`blocks` table).
+- Pin up to 3 chats (📌 on each Messages row or chat ⋯ menu); stored on this phone (`circle_pins`).
+- Photos in chat via the paperclip (bucket `post-images`, body falls back to `📷 Photo`).
