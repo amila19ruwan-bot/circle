@@ -147,3 +147,7 @@ Note: `likes` and `comments` both link posts and profiles, so any query that emb
 
 ## v21
 - Long-press no longer selects text or shows the Copy / Select all / Web search popup anywhere (global `user-select:none`, contextmenu blocked); text boxes still work normally.
+
+## v22
+- New app icon from the Circle logo: `icon-192.png`, `icon-512.png`, `icon-maskable-512.png`, `apple-touch-icon.png`; `manifest.webmanifest` rewritten (id, PNG icons incl. maskable, portrait, standalone) so Chrome installs it as a real app.
+- Install popup: Chrome's `beforeinstallprompt` is captured and a bottom card (Install / ✕) appears automatically; closing it hides it for 3 days. Settings also shows an Install Circle button while the app is installable.

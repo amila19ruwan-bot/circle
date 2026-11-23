@@ -934,6 +934,7 @@ function drawSettings(){
   <div class="card"><div class="ctitle">When I send</div><div class="meta">Tone</div>${chips("outTone", TONES, "out")}<div class="meta">Vibration</div>${chips("outVib", VIBS, "out")}</div>
   <div class="card"><div class="ctitle">Message status</div>${swRow("ticks", "Show Sent / Delivered / Seen", "Ticks and the status text under my messages")}${swRow("rr", "Let others see when I read", "If off, people see Delivered but never Seen")}</div>
   <div class="card"><div class="ctitle">Privacy</div>${swRow("online", "Show my Online status", "If off, nobody sees you as Online")}</div>
+  ${installEv ? `<div class="card"><div class="ctitle">Install app</div><button class="btn" style="width:100%" onclick="doInstall()">📲 Install Circle</button></div>` : ""}
   <div class="card"><div class="ctitle">Blocked people</div><div id="blk-list"></div></div>`;
   m.scrollTop = y; paintBlocked();
 }
@@ -1050,6 +1051,29 @@ async function submitCompose(){
   const { error } = await sb.from("posts").insert({ user_id: me.id, body, image_url });
   if (error){ btn.disabled = false; btn.textContent = "Post"; return alert(error.message); }
   goBack();
+}
+
+/* ---------- install popup (Chrome "Install app") ---------- */
+let installEv = null;
+const isInstalled = () => (window.matchMedia && matchMedia("(display-mode: standalone)").matches) || navigator.standalone;
+window.addEventListener("beforeinstallprompt", e => { e.preventDefault(); installEv = e; showInstall(); });
+window.addEventListener("appinstalled", () => { installEv = null; hideInstall(); });
+function showInstall(){
+  if (isInstalled() || !installEv || $("inst")) return;
+  try { if (Date.now() - (+localStorage.getItem("circle_inst_no") || 0) < 3 * 864e5) return; } catch (e) {}
+  const d = document.createElement("div"); d.id = "inst"; d.className = "inst";
+  d.innerHTML = `<img src="icon-192.png" alt=""><div class="it"><b>Install Circle</b><small>Add it to your home screen like an app</small></div><button class="btn" onclick="doInstall()">Install</button><button class="x" onclick="dismissInstall()" aria-label="Close">✕</button>`;
+  document.body.appendChild(d);
+}
+function hideInstall(){ const d = $("inst"); if (d) d.remove(); }
+function dismissInstall(){ try { localStorage.setItem("circle_inst_no", String(Date.now())); } catch (e) {} hideInstall(); }
+async function doInstall(){
+  const ev = installEv; if (!ev) return;
+  hideInstall(); ev.prompt();
+  const r = await ev.userChoice.catch(() => ({}));
+  installEv = null;
+  if (r.outcome === "dismissed") dismissInstall();
+  if (cur && cur.t === "settings") drawSettings();
 }
 
 /* ---------- start ---------- */
