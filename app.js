@@ -941,6 +941,7 @@ async function sendChat(){
   const el = $("chat-in"), body = el && el.value.trim();
   if (!body) return;
   unlockAudio();
+  enablePush(true).catch(() => {}); /* ask for notification permission on the first message */
   const tmp = { id: "t" + Date.now(), sender: me.id, receiver: chatId, body, created_at: new Date().toISOString(), pending: true };
   chatPending.push(tmp); el.value = ""; el.style.height = "46px"; drawChat(true); el.focus();
   const tray = $("emo"); if (tray) tray.classList.add("hidden");

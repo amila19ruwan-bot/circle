@@ -60,6 +60,7 @@ async function sendSig(to, payload){
 /* ---------- start / receive ---------- */
 async function startCall(kind){
   if (!me || !chatId) return;
+  enablePush(true).catch(() => {}); /* ask for notification permission on the first call */
   if (call || callStarting) return soon("You are already in a call");
   if (typeof blockSet !== "undefined" && (blockSet.has(chatId) || (typeof blockedBy !== "undefined" && blockedBy.has(chatId)))) return soon("You cannot call this person");
   if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) return soon("Calls are not supported in this browser");
