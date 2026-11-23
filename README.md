@@ -173,3 +173,13 @@ Note: `likes` and `comments` both link posts and profiles, so any query that emb
 - Home feed reel cards: autoplay when 60% visible (muted first), mute button on the video, tap the video = full-screen Reels view at that reel (nav hidden, back button top left), ••• menu with the Auto-play on/off switch (saved in `localStorage` key `circle_reel_auto`). The same menu (⋯) is in the Reels tab.
 - Reactions on reels (Home cards and Reels tab): tap = Like, hold = Love / Haha / Wow / Sad / Angry bar (same as posts).
 
+
+## v30: notifications when the app is closed (Web Push)
+- Run `migration-push-v30.sql` once in the SQL editor BEFORE uploading the v30 files.
+- Deploy the Edge Function `supabase/functions/send-push/index.ts` as a function named `send-push` (Supabase dashboard -> Edge Functions -> Deploy a new function, paste the code).
+- Add 3 secrets in Supabase (Edge Functions -> Secrets): `VAPID_PUBLIC_KEY` and `VAPID_PRIVATE_KEY` (the two values for this project; the private key is secret, never put it in this repository) and `VAPID_SUBJECT` = `mailto:` plus your own email.
+- The public key is in `app.js` (`VAPID_PUBLIC`). If you ever change keys, change it there too and all phones must turn notifications on again.
+- On each phone: open Circle, Settings -> Notifications -> "Turn on notifications", allow. Installing the app to the home screen works best.
+- Messages and calls send a push to the other person (friends only, not if blocked). If the app is open on screen, no system notification is shown (the in-app tone/ring is used).
+- Calls: the caller re-sends the ring every 3 s for up to 40 s, so the other phone can open the app from the notification and still see the call.
+- Limits: a web notification cannot show a full-screen call screen; it rings/vibrates as a notification. Silent or Do Not Disturb mode silences it.

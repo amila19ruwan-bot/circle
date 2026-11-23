@@ -2,6 +2,7 @@
    Signals travel over Supabase Realtime broadcast: each user listens on channel "call-<their id>".
    Works while both people have the app open. */
 const CALL_RING_SEC = 40;
+const seenCalls = new Set(); /* ring ids already handled, so repeated rings do not bring back a declined call */
 /* Add a TURN server here if calls do not connect on mobile data, e.g.
    { urls: "turn:YOUR_HOST:443", username: "USER", credential: "PASS" } */
 const CALL_TURN = [];
@@ -78,6 +79,13 @@ async function startCall(kind){
     ringLoop("out");
     call.ringT = setTimeout(() => { if (call && call.state === "calling") endCall("noanswer"); }, CALL_RING_SEC * 1000);
     sendSig(peer, { type: "ring", callId: call.id, kind });
+    pushNotify(peer, { kind: "call", callId: call.id, callKind: kind });
+    /* keep ringing while the other phone wakes up and opens the app from the notification */
+    const cid = call.id;
+    const reI = setInterval(() => {
+      if (!call || call.id !== cid || call.state !== "calling") return clearInterval(reI);
+      sendSig(peer, { type: "ring", callId: cid, kind });
+    }, 3000);
     wakeOn();
   } catch (e) {
     callStarting = false;
@@ -98,6 +106,8 @@ function stopStream(s){ try { s && s.getTracks().forEach(t => t.stop()); } catch
 async function onSig(p){
   if (!p || !me || !p.from || p.from === me.id) return;
   if (p.type === "ring"){
+    if (seenCalls.has(p.callId)) return;
+    seenCalls.add(p.callId);
     if (call || callStarting){ if (!(call && call.id === p.callId)) sendSig(p.from, { type: "busy", callId: p.callId }); return; }
     if (typeof blockSet !== "undefined" && (blockSet.has(p.from) || (typeof blockedBy !== "undefined" && blockedBy.has(p.from)))) return;
     const [{ data: u }, { data: f }] = await Promise.all([

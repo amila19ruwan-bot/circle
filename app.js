@@ -129,7 +129,7 @@ async function saveNewPass(){
   history.replaceState(null, "", location.pathname);
   location.reload();
 }
-async function logout(){ await sb.auth.signOut(); try { history.replaceState(null, ""); } catch (e) {} location.reload(); }
+async function logout(){ try { const reg = await navigator.serviceWorker.ready; const s = await reg.pushManager.getSubscription(); if (s){ await sb.from("push_subscriptions").delete().eq("endpoint", s.endpoint); await s.unsubscribe(); } } catch (e) {} await sb.auth.signOut(); try { history.replaceState(null, ""); } catch (e) {} location.reload(); }
 
 /* ---------- boot ---------- */
 async function boot(user){
@@ -145,6 +145,7 @@ async function boot(user){
   $("app").classList.remove("hidden");
   updateHeader();
   startRealtime();
+  enablePush(false).catch(() => {});
   startPresence();
   blocksP = loadBlocks(); beat();
   const st = history.state && history.state.t ? history.state : { t: "home", n: 0 };
@@ -947,6 +948,7 @@ async function sendChat(){
   chatPending = chatPending.filter(m => m !== tmp);
   if (error){ drawChat(true); el.value = body; return alert(msgErr(error.message)); }
   chatServer.push(data); drawChat(true); tone("out");
+  pushNotify(chatId, { kind: "message", text: body });
 }
 
 /* ---------- settings (tones, vibration, seen), stored on this phone ---------- */
@@ -983,9 +985,10 @@ function drawSettings(){
   <div class="card"><div class="ctitle">When I send</div><div class="meta">Tone</div>${chips("outTone", TONES, "out")}<div class="meta">Vibration</div>${chips("outVib", VIBS, "out")}</div>
   <div class="card"><div class="ctitle">Message status</div>${swRow("ticks", "Show Sent / Delivered / Seen", "Ticks and the status text under my messages")}${swRow("rr", "Let others see when I read", "If off, people see Delivered but never Seen")}</div>
   <div class="card"><div class="ctitle">Privacy</div>${swRow("online", "Show my Online status", "If off, nobody sees you as Online")}</div>
+  <div class="card"><div class="ctitle">Notifications</div><div class="meta" id="push-st">Checking…</div><button class="btn" style="width:100%;margin-top:10px" onclick="pushOn()">🔔 Turn on notifications</button></div>
   ${installEv ? `<div class="card"><div class="ctitle">Install app</div><button class="btn" style="width:100%" onclick="doInstall()">📲 Install Circle</button></div>` : ""}
   <div class="card"><div class="ctitle">Blocked people</div><div id="blk-list"></div></div>`;
-  m.scrollTop = y; paintBlocked();
+  m.scrollTop = y; paintBlocked(); paintPushSt();
 }
 async function fillBlocked(){
   const ids = [...blockSet];
@@ -1068,6 +1071,7 @@ async function sendChatPhoto(input){
   chatPending = chatPending.filter(m => m !== tmp);
   if (error) return fail(msgErr(error.message));
   chatServer.push(data); drawChat(true); tone("out");
+  pushNotify(chatId, { kind: "message", text: cap });
 }
 
 /* ---------- new post page (opens from the Photo icon) ---------- */
@@ -1134,3 +1138,49 @@ async function doInstall(){
 })();
 setInterval(() => { if (me && !document.hidden) refreshBell(); }, 10000);
 if ("serviceWorker" in navigator) navigator.serviceWorker.register("sw.js").catch(() => {});
+
+
+/* ---------- web push: notifications even when the app is closed (v30) ---------- */
+const VAPID_PUBLIC = "BH4YWQAS2G6kHPrdjhZqAOxbvZX5CoGvAdDsyLSCf71NyKd6IrwlBNc5XrDUnHSWyXCROMa94jsFGrXeFwEqYGE";
+const PUSH_URL = SUPABASE_URL + "/functions/v1/send-push";
+function b64ToU8(s){ const p = "=".repeat((4 - s.length % 4) % 4); const b = atob((s + p).replace(/-/g, "+").replace(/_/g, "/")); return Uint8Array.from(b, c => c.charCodeAt(0)); }
+function pushSupported(){ return "serviceWorker" in navigator && "PushManager" in window && "Notification" in window; }
+async function enablePush(ask){
+  if (!pushSupported() || !me) return "unsupported";
+  if (ask && Notification.permission === "default") await Notification.requestPermission();
+  if (Notification.permission !== "granted") return Notification.permission;
+  const reg = await navigator.serviceWorker.ready;
+  let sub = await reg.pushManager.getSubscription();
+  if (!sub) sub = await reg.pushManager.subscribe({ userVisibleOnly: true, applicationServerKey: b64ToU8(VAPID_PUBLIC) });
+  const j = sub.toJSON();
+  const { error } = await sb.rpc("save_push_sub", { p_endpoint: j.endpoint, p_p256dh: j.keys.p256dh, p_auth: j.keys.auth });
+  if (error) throw error;
+  paintPushSt();
+  return "granted";
+}
+async function pushOn(){
+  try {
+    const r = await enablePush(true);
+    soon(r === "granted" ? "Notifications on" : "Notifications are blocked. Allow them in phone settings");
+  } catch (e) { soon("Could not turn on notifications"); }
+  paintPushSt();
+}
+function paintPushSt(){
+  const el = $("push-st"); if (!el) return;
+  el.textContent = !pushSupported() ? "Not supported in this browser. Install the app first."
+    : Notification.permission === "granted" ? "On. You get a notification for messages and calls, even when the app is closed."
+    : Notification.permission === "denied" ? "Blocked. Allow notifications for Circle in phone settings."
+    : "Off. Tap the button to turn on.";
+}
+/* Tell the server about a new message or call so it can send a push to the other person. Best effort. */
+async function pushNotify(to, payload){
+  try {
+    const { data: { session } } = await sb.auth.getSession();
+    if (!session || !to) return;
+    await fetch(PUSH_URL, {
+      method: "POST",
+      headers: { "Content-Type": "application/json", "apikey": SUPABASE_KEY, "Authorization": "Bearer " + session.access_token },
+      body: JSON.stringify({ to, ...payload })
+    });
+  } catch (e) {}
+}
