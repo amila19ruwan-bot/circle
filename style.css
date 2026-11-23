@@ -810,3 +810,19 @@ header .hwave{opacity:.5}
 .tkrow .tk.tk2{width:22px}
 .tkrow.s-seen{color:#1E78FF}
 .tkrow.s-sending{color:#B3BAD3}
+
+/* ---- v19: emoji on posts and comments ---- */
+.comp2 .emo-tray,.cm-form + .emo-tray{margin:8px 0 0;box-shadow:none;background:#F4F7FF;grid-template-columns:repeat(8,1fr);max-height:220px;overflow-y:auto}
+.copts button{font-size:15px;padding:0 6px}
+
+/* ---- v20: reactions on the Like button (hold to open) ---- */
+.act.like{touch-action:manipulation;-webkit-user-select:none;user-select:none;-webkit-touch-callout:none}
+.act.like .rxe{font-size:20px;line-height:1;font-weight:400}
+.act.like.on.rx-love{color:#E0245E}.act.like.on.rx-haha,.act.like.on.rx-wow,.act.like.on.rx-sad{color:#D98E00}.act.like.on.rx-angry{color:#E8590C}
+.rxs2{display:inline-flex;margin-right:8px;vertical-align:middle}
+.rxs2 i{font-style:normal;font-size:16px;line-height:1;margin-right:-4px;background:#fff;border-radius:50%}
+.rxov{position:fixed;inset:0;z-index:320;background:rgba(10,20,60,.18)}
+.rxbar{position:fixed;left:50%;transform:translateX(-50%);display:flex;gap:2px;padding:6px 8px;background:#fff;border-radius:34px;box-shadow:0 8px 30px rgba(20,30,90,.35)}
+.rxbar button{width:48px;height:48px;border:0;background:none;font-size:31px;line-height:1;border-radius:50%;animation:rxpop .18s ease-out both}
+.rxbar button:nth-child(2){animation-delay:.02s}.rxbar button:nth-child(3){animation-delay:.04s}.rxbar button:nth-child(4){animation-delay:.06s}.rxbar button:nth-child(5){animation-delay:.08s}.rxbar button:nth-child(6){animation-delay:.1s}
+@keyframes rxpop{from{transform:translateY(12px) scale(.5);opacity:0}to{transform:none;opacity:1}}

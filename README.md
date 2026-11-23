@@ -137,3 +137,10 @@ Note: `likes` and `comments` both link posts and profiles, so any query that emb
 - `migration-chat-v18.sql`: `profiles.last_seen` (Online heartbeat every 25 s; Online = Realtime presence OR last_seen under 80 s). Run once before uploading.
 - Settings now opens from the gear on the Messages screen (and chat ⋯ menu), not from the profile. New: Sound volume (Low..Max, louder tones) and Show my Online status switch.
 - Ticks sit under my messages: Sent = 1 grey tick, Delivered = 2 grey ticks, Seen = 2 blue ticks. A message is only marked Seen while the app is on screen.
+
+## v19
+- Emoji picker (40 emojis) on the New post page and under each post's comment box (😊 button).
+
+## v20
+- Reactions on the Like button: tap = Like/unlike, hold (about 0.4 s) = bar with Love, Haha, Wow, Sad, Angry. Stored in `likes.reaction` (run `migration-reactions-v20.sql` once). Without the SQL, plain Like still works.
+- Reaction counts line shows the top 3 reaction emojis used on the post.

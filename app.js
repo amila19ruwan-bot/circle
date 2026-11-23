@@ -175,7 +175,7 @@ const ICON_VERIFIED = `<svg class="vf" viewBox="0 0 24 24" aria-label="Verified"
 const ICON_GLOBE = `<svg class="globe" viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="9"/><path d="M3 12h18M12 3c3 3 3 15 0 18M12 3c-3 3-3 15 0 18"/></svg>`;
 let saved = new Set();
 try { saved = new Set(JSON.parse(localStorage.getItem("circle_saved") || "[]")); } catch (e) {}
-let feed = [], openCm = new Set(), cmts = {}, pickedFile = null, previewUrl = null;
+let noReact = false, feed = [], openCm = new Set(), cmts = {}, pickedFile = null, previewUrl = null;
 
 async function renderHome(){
   pickedFile = null;
@@ -189,11 +189,12 @@ async function renderHome(){
 }
 async function loadFeed(userId, ids){
   let q = sb.from("posts")
-    .select("id,user_id,body,image_url,created_at,profiles!user_id(name,avatar_url),likes(user_id),comments(id)")
+    .select("id,user_id,body,image_url,created_at,profiles!user_id(name,avatar_url),likes(user_id" + (noReact ? "" : ",reaction") + "),comments(id)")
     .order("created_at", { ascending: false }).limit(50);
   if (userId) q = q.eq("user_id", userId);
   if (ids){ if (!ids.length){ feed = []; $("feed").innerHTML = `<div class="empty">Nothing saved yet. Tap Save on a post.</div>`; return; } q = q.in("id", ids); }
   const { data, error } = await q;
+  if (error && !noReact && /reaction/i.test(error.message)){ noReact = true; return loadFeed(userId, ids); }
   if (!$("feed")) return;
   if (error) { $("feed").innerHTML = `<div class="empty">Could not load posts: ${esc(error.message)}</div>`; return; }
   feed = data; openCm = new Set(); cmts = {};
@@ -220,17 +221,17 @@ function drawPost(id){
 }
 function postHtml(p){
   const name = p.profiles && p.profiles.name, pav = p.profiles && p.profiles.avatar_url;
-  const liked = p.likes.some(l => l.user_id === me.id), n = p.likes.length;
+  const mineL = p.likes.find(l => l.user_id === me.id), liked = !!mineL, mk = mineL ? rkey(mineL) : "like", n = p.likes.length;
   const count = cmts[p.id] ? cmts[p.id].length : p.comments.length;
   let h = `<div class="card" id="post-${p.id}"><div class="row"><div class="ring${p.user_id === me.id ? " me" : ""}">${avatar(name, false, pav, p.user_id)}</div><div style="flex:1;min-width:0"><div class="name lnk" onclick="openProfile('${p.user_id}')">${esc(name)}${VERIFIED.includes(String(name || "").toLowerCase()) ? ICON_VERIFIED : ""}</div><div class="meta">${ago(p.created_at)} · ${ICON_GLOBE}</div></div>${p.user_id === me.id ? `<button class="del" onclick="delPost(${p.id})" aria-label="Delete post" style="font-size:22px;letter-spacing:1px;line-height:1">•••</button>` : ""}</div>`;
   if (p.body) h += `<p class="body">${esc(p.body)}</p>`;
   if (p.image_url) h += `<img class="post-img" src="${esc(p.image_url)}" alt="Photo" loading="lazy" onclick="openPhoto(this.src)">`;
-  if (n || count) h += `<div class="react"><span>${n ? `<span class="rxs"><i class="rx r1">${ICON_THUMB}</i><i class="rx r2">${ICON_HEART}</i><i class="rx r3">😮</i></span>${n}` : ""}</span><span class="lnk" onclick="toggleCm(${p.id})">${count ? count + (count > 1 ? " comments" : " comment") : ""}</span></div>`;
-  h += `<div class="acts"><button class="act ${liked ? "on" : ""}" onclick="toggleLike(${p.id})" aria-label="Like">${ICON_THUMB}<span>Like</span></button><button class="act" onclick="toggleCm(${p.id})" aria-label="Comment">${ICON_CHAT}<span>Comment</span></button><button class="act" onclick="sharePost(${p.id})" aria-label="Share">${ICON_SHARE}<span>Share</span></button><button class="act ${saved.has(p.id) ? "sv" : ""}" onclick="toggleSave(${p.id})" aria-label="Save">${ICON_SAVE}<span>Save</span></button></div>`;
+  if (n || count) h += `<div class="react"><span>${n ? `${topRx(p.likes)}${n}` : ""}</span><span class="lnk" onclick="toggleCm(${p.id})">${count ? count + (count > 1 ? " comments" : " comment") : ""}</span></div>`;
+  h += `<div class="acts"><button class="act like${liked ? " on rx-" + mk : ""}" onpointerdown="rxDown(event,${p.id})" onpointerup="rxUp(event,${p.id})" onpointerleave="rxCancel()" onpointercancel="rxCancel()" oncontextmenu="return false" aria-label="Like (hold for reactions)">${liked ? `<b class="rxe">${REACTS[mk][0]}</b><span>${REACTS[mk][1]}</span>` : `${ICON_THUMB}<span>Like</span>`}</button><button class="act" onclick="toggleCm(${p.id})" aria-label="Comment">${ICON_CHAT}<span>Comment</span></button><button class="act" onclick="sharePost(${p.id})" aria-label="Share">${ICON_SHARE}<span>Share</span></button><button class="act ${saved.has(p.id) ? "sv" : ""}" onclick="toggleSave(${p.id})" aria-label="Save">${ICON_SAVE}<span>Save</span></button></div>`;
   if (openCm.has(p.id)){
     const list = cmts[p.id];
     h += list ? list.map(c => `<div class="cm">${avatar(c.profiles && c.profiles.name, false, c.profiles && c.profiles.avatar_url, c.user_id)}<div style="flex:1;min-width:0"><div class="bub"><div class="name lnk" onclick="openProfile('${c.user_id}')">${esc(c.profiles && c.profiles.name)}</div>${esc(c.body)}</div><div class="meta" style="margin:2px 0 0 12px">${ago(c.created_at)}${c.user_id === me.id ? ` · <button class="link" style="min-height:32px;font-size:13px" onclick="delCm(${p.id},${c.id})">Delete</button>` : ""}</div></div></div>`).join("") : `<div class="meta" style="margin-top:10px">Loading…</div>`;
-    h += `<div class="cm-form"><input id="c-${p.id}" maxlength="500" placeholder="Write a comment…" aria-label="Write a comment" onkeydown="if(event.key==='Enter')addCm(${p.id})"><button class="btn" onclick="addCm(${p.id})">Send</button></div>`;
+    h += `<div class="cm-form"><input id="c-${p.id}" maxlength="500" placeholder="Write a comment…" aria-label="Write a comment" onkeydown="if(event.key==='Enter')addCm(${p.id})"><button class="btn alt" style="flex:none;padding:0 12px" onmousedown="event.preventDefault()" onclick="toggleEmo('ce-${p.id}')" aria-label="Emoji">😊</button><button class="btn" onclick="addCm(${p.id})">Send</button></div>${emoTray("ce-" + p.id, "c-" + p.id)}`;
   }
   return h + `</div>`;
 }
@@ -247,15 +248,63 @@ async function sharePost(id){
     else { await navigator.clipboard.writeText(data.url); alert("Link copied"); }
   } catch (e) {}
 }
+const REACTS = { like: ["👍", "Like"], love: ["❤️", "Love"], haha: ["😂", "Haha"], wow: ["😮", "Wow"], sad: ["😢", "Sad"], angry: ["😡", "Angry"] };
+const rkey = l => REACTS[l.reaction] ? l.reaction : "like";
+function topRx(likes){
+  const c = {}; likes.forEach(l => { const k = rkey(l); c[k] = (c[k] || 0) + 1; });
+  return `<span class="rxs2">${Object.keys(c).sort((a, b) => c[b] - c[a]).slice(0, 3).map(k => `<i>${REACTS[k][0]}</i>`).join("")}</span>`;
+}
+async function insertLike(id, key){
+  let { error } = await sb.from("likes").insert({ post_id: id, user_id: me.id, reaction: key });
+  if (error && /reaction/i.test(error.message)){
+    if (key !== "like") return "Run migration-reactions-v20.sql in Supabase first.";
+    ({ error } = await sb.from("likes").insert({ post_id: id, user_id: me.id }));
+  }
+  return error ? error.message : null;
+}
 async function toggleLike(id){
   const p = feed.find(x => x.id === id); if (!p) return;
-  const liked = p.likes.some(l => l.user_id === me.id);
-  const { error } = liked
-    ? await sb.from("likes").delete().eq("post_id", id).eq("user_id", me.id)
-    : await sb.from("likes").insert({ post_id: id, user_id: me.id });
-  if (error) return alert(error.message);
-  p.likes = liked ? p.likes.filter(l => l.user_id !== me.id) : [...p.likes, { user_id: me.id }];
+  if (p.likes.some(l => l.user_id === me.id)){
+    const { error } = await sb.from("likes").delete().eq("post_id", id).eq("user_id", me.id);
+    if (error) return alert(error.message);
+    p.likes = p.likes.filter(l => l.user_id !== me.id);
+  } else {
+    const err = await insertLike(id, "like");
+    if (err) return alert(err);
+    p.likes = [...p.likes, { user_id: me.id, reaction: "like" }];
+  }
   drawPost(id);
+}
+async function setReaction(id, key){
+  const p = feed.find(x => x.id === id); if (!p) return;
+  const mine = p.likes.find(l => l.user_id === me.id);
+  if (mine && rkey(mine) === key) return;
+  if (mine){
+    const { error: de } = await sb.from("likes").delete().eq("post_id", id).eq("user_id", me.id);
+    if (de) return alert(de.message);
+    p.likes = p.likes.filter(l => l.user_id !== me.id);
+  }
+  const err = await insertLike(id, key);
+  if (err){ drawPost(id); return alert(err); }
+  p.likes = [...p.likes, { user_id: me.id, reaction: key }];
+  drawPost(id);
+}
+/* tap = Like / unlike, hold = reaction bar (Love, Haha, Wow, Sad, Angry) */
+let rxT = null;
+function rxDown(e, id){
+  clearTimeout(rxT); const el = e.currentTarget;
+  rxT = setTimeout(() => { rxT = null; try { navigator.vibrate && navigator.vibrate(25); } catch (x) {} showRx(id, el); }, 380);
+}
+function rxUp(e, id){ if (rxT){ clearTimeout(rxT); rxT = null; toggleLike(id); } }
+function rxCancel(){ if (rxT){ clearTimeout(rxT); rxT = null; } }
+function closeRx(){ const d = $("rxov"); if (d) d.remove(); }
+function showRx(id, el){
+  closeRx();
+  const r = el.getBoundingClientRect(), d = document.createElement("div");
+  d.id = "rxov"; d.className = "rxov"; d.onclick = closeRx;
+  d.innerHTML = `<div class="rxbar" style="bottom:${Math.round(innerHeight - r.top + 8)}px">${Object.entries(REACTS).map(([k, v]) => `<button data-k="${k}" aria-label="${v[1]}">${v[0]}</button>`).join("")}</div>`;
+  d.querySelectorAll("button").forEach(b => b.onclick = ev => { ev.stopPropagation(); closeRx(); setReaction(id, b.dataset.k); });
+  document.body.appendChild(d);
 }
 async function toggleCm(id){
   if (openCm.has(id)){ openCm.delete(id); return drawPost(id); }
@@ -687,9 +736,11 @@ function soon(t){
   clearTimeout(soon.t); soon.t = setTimeout(() => el.classList.add("hidden"), 2200);
 }
 const EMOJIS = ["😊","😂","😍","🥰","😘","😉","😎","🤗","🙂","😢","😭","😕","😮","😡","🤔","😴","👍","🙏","❤️","💙","🔥","🎉","✨","🌹"];
-function toggleEmo(){ const t = $("emo"); if (t) t.classList.toggle("hidden"); }
-function addEmo(e){
-  const el = $("chat-in"); if (!el) return;
+function toggleEmo(id){ const t = $(id || "emo"); if (t) t.classList.toggle("hidden"); }
+const POST_EMOJIS = ["😊","😂","🤣","😍","🥰","😘","😉","😎","🤗","🙂","😢","😭","😮","😡","🤔","😴","🥳","😇","🤩","😋","😅","🙈","💪","👍","👏","🙏","❤️","💙","💜","💔","🔥","🎉","✨","🌹","🌞","🌈","🎂","🎁","📸","🇱🇰"];
+const emoTray = (id, target) => `<div id="${id}" class="emo-tray hidden">${POST_EMOJIS.map(e => `<button onmousedown="event.preventDefault()" onclick="addEmo('${e}','${target}')" aria-label="${e}">${e}</button>`).join("")}</div>`;
+function addEmo(e, tid){
+  const el = $(tid || "chat-in"); if (!el) return;
   const a = el.selectionStart ?? el.value.length, b = el.selectionEnd ?? a;
   el.value = el.value.slice(0, a) + e + el.value.slice(b);
   el.selectionStart = el.selectionEnd = a + e.length;
@@ -973,7 +1024,7 @@ let composeFile = null, composeDraft = "";
 function openCompose(){ const b = $("p-body"); composeDraft = b ? b.value : ""; navTo({ t: "compose" }); }
 function renderCompose(){
   composeFile = null;
-  $("main").innerHTML = `<div class="card comp2"><div class="who">${avatar(me.name, false, me.avatar_url)}<b>${esc(me.name)}</b></div><textarea id="c-body" rows="5" maxlength="1000" placeholder="What is on your mind?" aria-label="New post"></textarea><div id="c-prev"></div><div class="copts"><button onclick="$('c-gal').click()">🖼️ Gallery</button><button onclick="$('c-cam').click()">📷 Camera</button></div><input id="c-gal" type="file" accept="image/*" class="hidden" onchange="pickCompose(this)"><input id="c-cam" type="file" accept="image/*" capture="environment" class="hidden" onchange="pickCompose(this)"><button class="btn" id="c-go" style="width:100%;margin-top:12px" onclick="submitCompose()">Post</button></div>`;
+  $("main").innerHTML = `<div class="card comp2"><div class="who">${avatar(me.name, false, me.avatar_url)}<b>${esc(me.name)}</b></div><textarea id="c-body" rows="5" maxlength="1000" placeholder="What is on your mind?" aria-label="New post"></textarea><div id="c-prev"></div><div class="copts"><button onclick="$('c-gal').click()">🖼️ Gallery</button><button onclick="$('c-cam').click()">📷 Camera</button><button onmousedown="event.preventDefault()" onclick="toggleEmo('c-emo')">😊 Emoji</button></div>${emoTray("c-emo", "c-body")}<input id="c-gal" type="file" accept="image/*" class="hidden" onchange="pickCompose(this)"><input id="c-cam" type="file" accept="image/*" capture="environment" class="hidden" onchange="pickCompose(this)"><button class="btn" id="c-go" style="width:100%;margin-top:12px" onclick="submitCompose()">Post</button></div>`;
   $("c-body").value = composeDraft; composeDraft = "";
 }
 function pickCompose(input){
