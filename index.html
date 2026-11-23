@@ -39,6 +39,16 @@
     <button class="btn" id="a-go" onclick="submitAuth()">Log in</button>
     <button class="link" id="a-switch" onclick="toggleAuth()">New here? Create an account</button>
     <button class="link" id="a-forgot" onclick="forgotPass()">Forgot password?</button>
+    <div id="otp-box" class="hidden">
+      <h3>Enter your code</h3>
+      <p id="otp-sub">We emailed you a code. Enter it below.</p>
+      <input id="a-otp" inputmode="numeric" autocomplete="one-time-code" maxlength="8" placeholder="Code from email" aria-label="Email code" style="text-align:center;letter-spacing:6px;font-size:22px">
+      <div id="otp-msg" role="alert"></div>
+      <button class="btn" id="otp-go" onclick="verifyOtp()">Verify</button>
+      <button class="link" id="otp-resend" onclick="resendOtp()">Resend code</button>
+      <button class="link" onclick="cancelOtp()">Use a different email</button>
+    </div>
+
   </div>
 </section>
 
@@ -99,7 +109,7 @@ function showErr(t){ document.body.insertAdjacentHTML("afterbegin", '<pre style=
 window.onerror = (m, s, l) => showErr("Error: " + m + " (line " + l + ")");
 window.addEventListener("load", () => { if (typeof boot === "undefined") showErr("app.js did not load fully. Upload app.js again."); });
 </script>
-<script src="app.js?v=28"></script>
+<script src="app.js?v=29"></script>
 <script src="reels.js?v=27"></script>
 <script src="calls.js?v=28"></script>
 </body>

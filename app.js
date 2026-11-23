@@ -60,13 +60,58 @@ async function submitAuth(){
   if (signup){
     const { data, error } = await sb.auth.signUp({ email, password, options: { data: { name } } });
     if (error) return say(error.message);
-    if (!data.session) return say("Account created. Check your email to confirm, then log in.", true);
+    if (!data.session) return showOtp(email, "We sent a code to " + email + ". Enter it to finish creating your account.");
     boot(data.user);
   } else {
     const { data, error } = await sb.auth.signInWithPassword({ email, password });
-    if (error) return say(error.message);
+    if (error){
+      if (/not confirmed/i.test(error.message)){
+        const r = await sb.auth.resend({ type: "signup", email });
+        if (r.error) return say(r.error.message);
+        return showOtp(email, "Your email isn't confirmed yet. We sent a new code to " + email + ".");
+      }
+      return say(error.message);
+    }
     boot(data.user);
   }
+}
+/* ---------- email OTP ---------- */
+let otpEmail = "";
+function otpSay(t, ok){ const m = $("otp-msg"); m.textContent = t; m.style.cssText = "min-height:20px;font-size:14px;margin:6px 0;color:" + (ok ? "#067647" : "#B42318"); }
+function showOtp(email, text){
+  otpEmail = email;
+  ["a-name","a-email","a-pass","msg","a-go","a-switch","a-forgot"].forEach(id => $(id).classList.add("hidden"));
+  $("auth-title").classList.add("hidden"); $("auth-sub").classList.add("hidden");
+  $("otp-box").classList.remove("hidden");
+  $("otp-sub").textContent = text;
+  $("a-otp").value = ""; otpSay("");
+  $("a-otp").focus();
+}
+function cancelOtp(){
+  otpEmail = "";
+  $("otp-box").classList.add("hidden");
+  ["a-email","a-pass","msg","a-go","a-switch","a-forgot"].forEach(id => $(id).classList.remove("hidden"));
+  $("auth-title").classList.remove("hidden"); $("auth-sub").classList.remove("hidden");
+  setAuthMode(signup);
+}
+async function verifyOtp(){
+  const token = $("a-otp").value.replace(/\s+/g, "");
+  if (!/^\d{6,8}$/.test(token)) return otpSay("Enter the code from your email.");
+  otpSay("Checking…", true);
+  const { data, error } = await sb.auth.verifyOtp({ email: otpEmail, token, type: "signup" });
+  if (error) return otpSay(/expired|invalid/i.test(error.message) ? "That code is wrong or expired. Tap Resend code." : error.message);
+  if (!data.session) return otpSay("Verified. Please log in.", true);
+  cancelOtp();
+  boot(data.user);
+}
+async function resendOtp(){
+  if (!otpEmail) return;
+  const b = $("otp-resend"); b.disabled = true;
+  otpSay("Sending…", true);
+  const { error } = await sb.auth.resend({ type: "signup", email: otpEmail });
+  if (error){ b.disabled = false; return otpSay(error.message); }
+  otpSay("New code sent. Check your inbox and spam.", true);
+  setTimeout(() => { b.disabled = false; }, 30000);
 }
 async function forgotPass(){
   const email = $("a-email").value.trim();
