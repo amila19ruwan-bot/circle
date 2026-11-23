@@ -289,6 +289,7 @@ async function setReaction(id, key){
   p.likes = [...p.likes, { user_id: me.id, reaction: key }];
   drawPost(id);
 }
+document.addEventListener("contextmenu", e => { if (!/^(INPUT|TEXTAREA)$/.test(e.target.tagName)) e.preventDefault(); });
 /* tap = Like / unlike, hold = reaction bar (Love, Haha, Wow, Sad, Angry) */
 let rxT = null;
 function rxDown(e, id){

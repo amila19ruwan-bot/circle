@@ -144,3 +144,6 @@ Note: `likes` and `comments` both link posts and profiles, so any query that emb
 ## v20
 - Reactions on the Like button: tap = Like/unlike, hold (about 0.4 s) = bar with Love, Haha, Wow, Sad, Angry. Stored in `likes.reaction` (run `migration-reactions-v20.sql` once). Without the SQL, plain Like still works.
 - Reaction counts line shows the top 3 reaction emojis used on the post.
+
+## v21
+- Long-press no longer selects text or shows the Copy / Select all / Web search popup anywhere (global `user-select:none`, contextmenu blocked); text boxes still work normally.
