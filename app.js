@@ -829,7 +829,7 @@ async function renderInbox(){
 async function renderChat(id){
   stopChatPoll();
   chatId = id; chatKey = ""; chatServer = []; chatPending = [];
-  $("main").innerHTML = `<div class="chat"><div class="chat-top"><button class="bk" onclick="goBack()" aria-label="Back">${ICON_BACK}</button><div id="chat-who" class="chat-who"></div><div class="chat-act"><button class="hb" onclick="soon('Voice calls are coming soon')" aria-label="Voice call">${ICON_PHONE}</button><button class="hb" onclick="soon('Video calls are coming soon')" aria-label="Video call">${ICON_VIDEO}</button><button class="hb" onclick="chatMenu()" aria-label="More">${ICON_MORE}</button></div></div><div id="chat-list" class="chat-list"><div class="empty">Loading…</div></div><div id="chat-foot"></div></div>`;
+  $("main").innerHTML = `<div class="chat"><div class="chat-top"><button class="bk" onclick="goBack()" aria-label="Back">${ICON_BACK}</button><div id="chat-who" class="chat-who"></div><div class="chat-act"><button class="hb" onclick="startCall('audio')" aria-label="Voice call">${ICON_PHONE}</button><button class="hb" onclick="startCall('video')" aria-label="Video call">${ICON_VIDEO}</button><button class="hb" onclick="chatMenu()" aria-label="More">${ICON_MORE}</button></div></div><div id="chat-list" class="chat-list"><div class="empty">Loading…</div></div><div id="chat-foot"></div></div>`;
   const [{ data: u }, { data: f }] = await Promise.all([
     sb.from("profiles").select("id,name,avatar_url").eq("id", id).maybeSingle(),
     sb.from("friendships").select("id").eq("status", "accepted")
