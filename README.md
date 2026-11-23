@@ -156,6 +156,15 @@ Note: `likes` and `comments` both link posts and profiles, so any query that emb
 - Run `migration-reels-v23.sql` once (bucket `reels`, tables `reels`, `reel_likes`, `reel_comments`, RLS, grants) BEFORE uploading the v23 files.
 - New files `reels.js` and `reels.css` (loaded from `index.html`); `app.js` only routes the `reels` and `reelnew` views.
 - Reels tab: full-screen vertical feed (scroll-snap), the visible video autoplays (muted at first, sound button top left), tap to pause, like, comments sheet, share, delete own. ＋ button (top right) opens the New reel page (Gallery / Camera, caption, preview).
-- Limits (free Supabase plan): max 60 s and 30 MB per video, MP4 / WebM / MOV. Videos load only when they are the current or next reel to save egress (5 GB / month free).
+- Limits (free Supabase plan): max 15 s per video (upload limit 300 MB before shrinking, 30 MB after), MP4 / WebM / MOV. Videos load only when they are the current or next reel to save egress (5 GB / month free).
 - Possible later: compress videos in the browser before upload, move videos to Cloudflare R2 when the free storage runs out.
+
+## v24
+- Home feed now also shows the latest 10 reels (as video cards with a "Watch more in Reels" button), mixed with posts by time. Code: `loadHomeReels` / `feedHtml` in `reels.js`, small hooks in `loadFeed` / `drawFeed` in `app.js`.
+
+## v25
+- Reel cards in the Home feed now have Like, Comment (opens the comments sheet) and Share, using the same functions as the Reels tab (`findReel` looks in both lists).
+
+## v26
+- Reels are limited to 15 s. Videos over 8 MB are shrunk on the phone before upload (`compressReel` in `reels.js`: canvas + MediaRecorder, 720p short side, 1.5 Mbps, WebM/MP4, audio kept via AudioContext). If shrinking fails and the original is under 30 MB it is uploaded as is. Not browser-tested; needs the screen on while it runs.
 

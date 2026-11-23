@@ -1,6 +1,6 @@
 /* Circle v23: Reels (short videos). Needs migration-reels-v23.sql */
 const REEL_BUCKET = "reels";
-const REEL_MAX_MB = 30, REEL_MAX_SEC = 60;
+const REEL_MAX_MB = 30, REEL_MAX_SEC = 15, REEL_PICK_MB = 300, REEL_DIRECT_MB = 8;
 let reelObs = null, reelMuted = true, reelList = [], reelFile = null, reelUrl = null;
 
 const IC_HEART = `<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 21s-8-5.2-8-11a4.5 4.5 0 0 1 8-2.8A4.5 4.5 0 0 1 20 10c0 5.8-8 11-8 11z"/></svg>`;
@@ -86,8 +86,9 @@ function toggleReelSound(){
 }
 
 /* ---------- like / share / delete ---------- */
+function findReel(id){ return reelList.find(x => x.id === id) || homeReels.find(x => x.id === id); }
 async function likeReel(id){
-  const r = reelList.find(x => x.id === id); if (!r) return;
+  const r = findReel(id); if (!r) return;
   const btn = $("rl-like-" + id); if (!btn || btn.dataset.busy) return;
   btn.dataset.busy = "1";
   const likes = r.reel_likes || (r.reel_likes = []);
@@ -98,10 +99,10 @@ async function likeReel(id){
   delete btn.dataset.busy;
   if (err) return alert(err.message);
   btn.classList.toggle("on", i === -1);
-  btn.querySelector("span").textContent = likes.length;
+  btn.querySelector("span").textContent = likes.length || btn.dataset.lbl || 0;
 }
 async function shareReel(id){
-  const r = reelList.find(x => x.id === id); if (!r) return;
+  const r = findReel(id); if (!r) return;
   const url = location.origin, text = (r.caption ? r.caption + " - " : "") + "Watch this reel on Circle";
   try { if (navigator.share){ await navigator.share({ title: "Circle", text, url }); return; } } catch (e) { return; }
   try { await navigator.clipboard.writeText(url); alert("Link copied."); } catch (e) { alert(url); }
@@ -146,7 +147,7 @@ async function loadReelCm(){
 }
 function setReelCount(id, n){
   const e = $("rl-cn-" + id); if (e) e.textContent = n;
-  const r = reelList.find(x => x.id === id); if (r) r.reel_comments = new Array(n).fill({});
+  const r = findReel(id); if (r) r.reel_comments = new Array(n).fill({});
 }
 async function sendReelCm(){
   const inp = $("rls-in"), body = inp && inp.value.trim(); if (!body || !rcmId) return;
@@ -173,14 +174,14 @@ function renderReelNew(){
     <div class="copts"><button onclick="$('rn-gal').click()">🎞️ Gallery</button><button onclick="$('rn-cam').click()">🎥 Camera</button></div>
     <input id="rn-gal" type="file" accept="video/*" class="hidden" onchange="pickReel(this)">
     <input id="rn-cam" type="file" accept="video/*" capture="environment" class="hidden" onchange="pickReel(this)">
-    <p class="rn-note">Max ${REEL_MAX_SEC} seconds and ${REEL_MAX_MB} MB. MP4 works best.</p>
+    <p class="rn-note">Max ${REEL_MAX_SEC} seconds. Big videos are shrunk on your phone before upload (keep the screen on, it takes about as long as the video).</p>
     <button class="btn" id="rn-go" style="width:100%;margin-top:6px" onclick="submitReel()">Post reel</button></div>`;
 }
 function pickReel(input){
   const f = input.files && input.files[0]; input.value = "";
   if (!f) return;
   if (!/^video\/(mp4|webm|quicktime)$/.test(f.type)) return alert("This video type is not supported. Please pick an MP4 video.");
-  if (f.size > REEL_MAX_MB * 1048576) return alert("Video is too big (" + (f.size / 1048576).toFixed(1) + " MB). Max is " + REEL_MAX_MB + " MB. Pick a shorter video or record in lower quality.");
+  if (f.size > REEL_PICK_MB * 1048576) return alert("Video is too big (" + Math.round(f.size / 1048576) + " MB). Max is " + REEL_PICK_MB + " MB. Pick a shorter video.");
   const url = URL.createObjectURL(f), probe = document.createElement("video");
   probe.preload = "metadata";
   probe.onloadedmetadata = () => {
@@ -194,18 +195,117 @@ function pickReel(input){
   probe.onerror = () => { URL.revokeObjectURL(url); alert("Could not read this video. Try another one."); };
   probe.src = url;
 }
+/* shrink a video on the phone: re-record it (max 720p short side, 1.5 Mbps) with canvas + MediaRecorder */
+function reelMime(){
+  if (!window.MediaRecorder) return null;
+  return ["video/webm;codecs=vp9,opus", "video/webm;codecs=vp8,opus", "video/webm", "video/mp4;codecs=avc1,mp4a.40.2", "video/mp4"].find(t => MediaRecorder.isTypeSupported(t)) || null;
+}
+async function compressReel(file, onProg){
+  const mime = reelMime();
+  if (!mime || !HTMLCanvasElement.prototype.captureStream) throw new Error("not supported");
+  const url = URL.createObjectURL(file), v = document.createElement("video");
+  v.playsInline = true; v.preload = "auto"; v.src = url;
+  let ac = null, lock = null;
+  const cleanup = () => {
+    try { v.pause(); } catch (e) {}
+    URL.revokeObjectURL(url);
+    if (ac) { try { ac.close(); } catch (e) {} }
+    if (lock) { try { lock.release(); } catch (e) {} }
+  };
+  try {
+    await new Promise((ok, no) => { v.onloadedmetadata = ok; v.onerror = () => no(new Error("read")); });
+    const dur = v.duration;
+    if (!isFinite(dur) || !v.videoWidth || !v.videoHeight) throw new Error("metadata");
+    const sc = Math.min(1, 720 / Math.min(v.videoWidth, v.videoHeight));
+    const w = Math.max(2, Math.round(v.videoWidth * sc / 2) * 2), h = Math.max(2, Math.round(v.videoHeight * sc / 2) * 2);
+    const cv = document.createElement("canvas"); cv.width = w; cv.height = h;
+    const ctx = cv.getContext("2d");
+    const stream = cv.captureStream(30);
+    try {
+      ac = new (window.AudioContext || window.webkitAudioContext)();
+      await ac.resume();
+      const src = ac.createMediaElementSource(v), dst = ac.createMediaStreamDestination();
+      src.connect(dst);
+      dst.stream.getAudioTracks().forEach(t => stream.addTrack(t));
+    } catch (e) { ac = null; }
+    try { if (navigator.wakeLock) lock = await navigator.wakeLock.request("screen"); } catch (e) {}
+    const rec = new MediaRecorder(stream, { mimeType: mime, videoBitsPerSecond: 1500000, audioBitsPerSecond: 96000 });
+    const chunks = [];
+    rec.ondataavailable = e => { if (e.data && e.data.size) chunks.push(e.data); };
+    const done = new Promise((ok, no) => { rec.onstop = ok; rec.onerror = e => no((e && e.error) || new Error("recorder")); });
+    let stopped = false;
+    const finish = () => { if (stopped) return; stopped = true; try { if (rec.state !== "inactive") rec.stop(); } catch (e) {} };
+    v.onended = finish;
+    const draw = () => {
+      if (stopped) return;
+      ctx.drawImage(v, 0, 0, w, h);
+      if (onProg) onProg(Math.min(99, Math.round(v.currentTime / dur * 100)));
+      if (v.requestVideoFrameCallback) v.requestVideoFrameCallback(draw); else requestAnimationFrame(draw);
+    };
+    rec.start(500);
+    try { await v.play(); } catch (e) { v.muted = true; await v.play(); }
+    draw();
+    setTimeout(finish, (dur + 6) * 1000);
+    await done;
+    const blob = new Blob(chunks, { type: mime.split(";")[0] });
+    if (!blob.size) throw new Error("empty");
+    return blob;
+  } finally { cleanup(); }
+}
 async function submitReel(){
   if (!reelFile) return alert("Pick a video first.");
-  const btn = $("rn-go"); btn.disabled = true; btn.textContent = "Uploading… please wait";
-  const f = reelFile, ext = f.type === "video/webm" ? "webm" : f.type === "video/quicktime" ? "mov" : "mp4";
-  const path = `${me.id}/${Date.now()}.${ext}`;
+  const btn = $("rn-go"); btn.disabled = true;
   const reset = () => { btn.disabled = false; btn.textContent = "Post reel"; };
-  const { error: ue } = await sb.storage.from(REEL_BUCKET).upload(path, f, { contentType: f.type, cacheControl: "31536000" });
+  const f = reelFile;
+  let blob = f, type = f.type;
+  if (f.size > REEL_DIRECT_MB * 1048576){
+    btn.textContent = "Shrinking video… 0%";
+    try {
+      blob = await compressReel(f, p => { btn.textContent = "Shrinking video… " + p + "% (keep screen on)"; });
+      type = blob.type;
+    } catch (e) {
+      if (f.size > REEL_MAX_MB * 1048576){ reset(); return alert("Could not shrink this video on your phone. Pick a smaller video (under " + REEL_MAX_MB + " MB)."); }
+      blob = f; type = f.type;
+    }
+  }
+  if (blob.size > REEL_MAX_MB * 1048576){ reset(); return alert("Video is still too big (" + Math.round(blob.size / 1048576) + " MB). Pick a shorter video."); }
+  btn.textContent = "Uploading… please wait";
+  const ext = type === "video/webm" ? "webm" : type === "video/quicktime" ? "mov" : "mp4";
+  const path = `${me.id}/${Date.now()}.${ext}`;
+  const { error: ue } = await sb.storage.from(REEL_BUCKET).upload(path, blob, { contentType: type, cacheControl: "31536000" });
   if (ue){ reset(); return alert("Upload failed: " + ue.message); }
   const video_url = sb.storage.from(REEL_BUCKET).getPublicUrl(path).data.publicUrl;
-  const caption = ($("rn-cap").value || "").trim() || null;
+  const caption = ($("rn-cap") ? $("rn-cap").value : "").trim() || null;
   const { error } = await sb.from("reels").insert({ user_id: me.id, video_url, caption });
   if (error){ sb.storage.from(REEL_BUCKET).remove([path]); reset(); return alert(error.message); }
   reelFile = null;
   navTo({ t: "reels" }, true);
+}
+
+/* ---------- reels inside the Home feed ---------- */
+let homeReels = [];
+async function loadHomeReels(){
+  try {
+    const { data, error } = await sb.from("reels").select("id,user_id,video_url,caption,created_at,profiles!user_id(name,avatar_url),reel_likes(user_id),reel_comments(id)").order("created_at", { ascending: false }).limit(10);
+    homeReels = error ? [] : (data || []);
+  } catch (e) { homeReels = []; }
+}
+function homeReelHtml(r){
+  const n = r.profiles ? r.profiles.name : "Someone", av = r.profiles ? r.profiles.avatar_url : null;
+  const lk = (r.reel_likes || []).length, mine = (r.reel_likes || []).some(l => l.user_id === me.id), cm = (r.reel_comments || []).length;
+  return `<div class="card hr-card" id="hr-${r.id}"><div class="row"><div class="ring${r.user_id === me.id ? " me" : ""}">${avatar(n, false, av, r.user_id)}</div><div style="flex:1;min-width:0"><div class="name lnk" onclick="openProfile('${r.user_id}')">${esc(n)}${VERIFIED.includes(String(n || "").toLowerCase()) ? ICON_VERIFIED : ""}</div><div class="meta">${ago(r.created_at)} · posted a reel</div></div></div>
+    ${r.caption ? `<p class="body">${esc(r.caption)}</p>` : ""}
+    <video class="hr-v" src="${esc(r.video_url)}#t=0.1" controls playsinline preload="metadata"></video>
+    <div class="acts hr-acts">
+      <button class="act ${mine ? "on" : ""}" id="rl-like-${r.id}" data-lbl="Like" onclick="likeReel(${r.id})" aria-label="Like">${IC_HEART}<span>${lk || "Like"}</span></button>
+      <button class="act" onclick="openReelCm(${r.id})" aria-label="Comment">${IC_CMT}<span id="rl-cn-${r.id}">${cm}</span></button>
+      <button class="act" onclick="shareReel(${r.id})" aria-label="Share">${IC_SHR}<span>Share</span></button>
+    </div>
+    <button class="hr-open" onclick="go('reels')">▶ Watch more in Reels</button></div>`;
+}
+function feedHtml(posts){
+  const all = posts.map(p => ({ t: new Date(p.created_at).getTime(), h: () => postHtml(p) }))
+    .concat(homeReels.map(r => ({ t: new Date(r.created_at).getTime(), h: () => homeReelHtml(r) })));
+  all.sort((x, y) => y.t - x.t);
+  return all.map(x => x.h()).join("");
 }

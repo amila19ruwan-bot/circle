@@ -199,6 +199,7 @@ async function loadFeed(userId, ids){
   if (error && !noReact && /reaction/i.test(error.message)){ noReact = true; return loadFeed(userId, ids); }
   if (!$("feed")) return;
   if (error) { $("feed").innerHTML = `<div class="empty">Could not load posts: ${esc(error.message)}</div>`; return; }
+  if (!userId && !ids && typeof loadHomeReels === "function"){ await loadHomeReels(); if (!$("feed")) return; }
   feed = data; openCm = new Set(); cmts = {};
   drawFeed();
   if (userId && $("st-likes")) $("st-likes").textContent = feed.reduce((a, p) => a + p.likes.length, 0);
@@ -214,7 +215,8 @@ function drawFeed(){
       : `<div class="ptxt" onclick="openPost(${p.id})"><span>${esc(p.body)}</span></div>`).join("")}</div>`;
     return;
   }
-  $("feed").innerHTML = !feed.length ? `<div class="empty">No posts here yet.</div>`
+  const mixed = tab === "home" && typeof feedHtml === "function" ? feedHtml(feed) : null;
+  $("feed").innerHTML = mixed ? mixed : !feed.length ? `<div class="empty">No posts here yet.</div>`
     : feed.map(postHtml).join("");
 }
 function drawPost(id){
