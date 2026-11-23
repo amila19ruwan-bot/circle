@@ -775,3 +775,31 @@ header .hwave{opacity:.5}
 
 /* v16: profile name was hidden behind the avatar (card padding override) */
 .card.pinfo{padding:66px 14px 16px}
+
+/* ---- v17: settings, sheet, pins, chat photos, compose ---- */
+.chips{display:flex;flex-wrap:wrap;gap:8px;margin:8px 0 14px}
+.chip{min-height:44px;padding:0 16px;border-radius:22px;border:1.5px solid #D6DEFF;background:#fff;color:var(--ink);font-size:15px;font-weight:700}
+.chip.on{background:var(--grad);color:#fff;border-color:transparent}
+.swrow{display:flex;align-items:center;justify-content:space-between;gap:12px;min-height:56px;padding:6px 0;cursor:pointer}
+.swrow b{display:block;font-size:16px}.swrow small{color:var(--mute);font-size:13px}
+.sw{flex:none;width:52px;height:30px;border-radius:15px;background:#C9D2EE;position:relative;transition:background .2s}
+.sw i{position:absolute;top:3px;left:3px;width:24px;height:24px;border-radius:50%;background:#fff;transition:left .2s;box-shadow:0 1px 3px rgba(0,0,0,.3)}
+.sw.on{background:#2F6BFF}.sw.on i{left:25px}
+.crow2{display:flex;align-items:center;gap:12px;padding:6px 0}.crow2 b{flex:1}
+.crow2 .btn{flex:none;min-height:44px;padding:0 16px}
+.sheet{position:fixed;inset:0;z-index:300;background:rgba(10,20,60,.45);display:flex;align-items:flex-end}
+.sheet-in{width:100%;background:#fff;border-radius:26px 26px 0 0;padding:12px 14px calc(14px + env(safe-area-inset-bottom,0px));display:flex;flex-direction:column;gap:8px}
+.sheet-in button{min-height:52px;border:0;border-radius:16px;background:#F1F4FF;font-size:17px;font-weight:700;color:var(--ink);text-align:left;padding:0 18px}
+.sheet-in button.red{color:#D62839}.sheet-in button.cancel{text-align:center;background:#fff;color:var(--mute)}
+.tr{display:flex;align-items:center;gap:6px;flex:none}
+.pinb{width:44px;height:44px;margin:-10px -8px -10px 0;border:0;background:none;font-size:18px;opacity:.28;filter:grayscale(1)}
+.pinb.on{opacity:1;filter:none}
+.msg.img{padding:6px 6px 6px}
+.msg .mimg{display:block;width:230px;max-width:100%;max-height:300px;object-fit:cover;border-radius:20px}
+.msg.img i{padding:0 10px}
+.msg.img:not(:has(.mimg + i)){padding-bottom:6px}
+.chat-note .lnk{border:0;background:none;color:var(--blue);font-weight:800;font-size:inherit;min-height:44px;padding:0 6px}
+.comp2 .who{display:flex;align-items:center;gap:10px;margin-bottom:10px}
+.comp2 textarea{width:100%;border:0;outline:0;resize:none;font:inherit;font-size:18px;background:transparent;min-height:110px}
+.copts{display:flex;gap:10px;margin-top:10px}
+.copts button{flex:1;min-height:52px;border-radius:16px;border:1.5px solid #D6DEFF;background:#F4F7FF;font-size:16px;font-weight:700;color:var(--ink)}
