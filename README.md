@@ -168,3 +168,8 @@ Note: `likes` and `comments` both link posts and profiles, so any query that emb
 ## v26
 - Reels are limited to 15 s. Videos over 8 MB are shrunk on the phone before upload (`compressReel` in `reels.js`: canvas + MediaRecorder, 720p short side, 1.5 Mbps, WebM/MP4, audio kept via AudioContext). If shrinking fails and the original is under 30 MB it is uploaded as is. Not browser-tested; needs the screen on while it runs.
 
+## v27
+- Run `migration-reels-v27.sql` once (adds `reel_likes.reaction`). Without it, plain likes still work and emoji reactions say to run the SQL.
+- Home feed reel cards: autoplay when 60% visible (muted first), mute button on the video, tap the video = full-screen Reels view at that reel (nav hidden, back button top left), ••• menu with the Auto-play on/off switch (saved in `localStorage` key `circle_reel_auto`). The same menu (⋯) is in the Reels tab.
+- Reactions on reels (Home cards and Reels tab): tap = Like, hold = Love / Haha / Wow / Sad / Angry bar (same as posts).
+
