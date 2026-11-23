@@ -1177,7 +1177,13 @@ function paintPushSt(){
 async function pushNotify(to, payload){
   try {
     if (!me || !to) return;
-    const { error } = await sb.functions.invoke("send-push", { body: { to, ...payload } });
-    if (error) console.log("push error", error);
+    const { data: { session } } = await sb.auth.getSession();
+    if (!session) return;
+    /* login token goes in its own header; the Authorization header carries only the public key */
+    await fetch(PUSH_URL, {
+      method: "POST",
+      headers: { "Content-Type": "application/json", "apikey": SUPABASE_KEY, "Authorization": "Bearer " + SUPABASE_KEY, "x-user-token": session.access_token },
+      body: JSON.stringify({ to, ...payload })
+    });
   } catch (e) {}
 }
