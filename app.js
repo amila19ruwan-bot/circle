@@ -122,14 +122,15 @@ async function refreshBell(){
 let lastUnread = 0, rtOk = false;
 /* ---------- navigation (with phone Back button support) ---------- */
 let cur = null;
-const TITLES = { home: "Circle", friends: "Friends", reels: "Reels", market: "Marketplace", me: "My profile", profile: "Profile", edit: "Edit profile", saved: "Saved", post: "Post", search: "Search", inbox: "Messages", chat: "Chat", settings: "Settings", compose: "New post" };
+const TITLES = { home: "Circle", friends: "Friends", reels: "Reels", market: "Marketplace", me: "My profile", profile: "Profile", edit: "Edit profile", saved: "Saved", post: "Post", search: "Search", inbox: "Messages", chat: "Chat", settings: "Settings", compose: "New post", reelnew: "New reel" };
 function show(v, keep){
   cur = v; tab = v.t;
   closeLb();
+  if (typeof stopReels === "function") stopReels();
   if (v.t !== "chat") stopChatPoll();
   $("app").classList.toggle("chatmode", v.t === "chat");
   $("app").dataset.view = v.t;
-  const hl = v.t === "edit" ? "me" : v.t === "compose" ? "home" : v.t;
+  const hl = v.t === "edit" ? "me" : v.t === "compose" ? "home" : v.t === "reelnew" ? "reels" : v.t;
   TABS.forEach(x => $("t-" + x).classList.toggle("on", x === hl));
   $("title").textContent = TITLES[v.t] || "Circle";
   $("title").classList.toggle("long", ($("title").textContent || "").length > 8);
@@ -142,9 +143,10 @@ function show(v, keep){
   else if (v.t === "post") renderPost(v.id);
   else if (v.t === "settings") renderSettings();
   else if (v.t === "compose") renderCompose();
+  else if (v.t === "reelnew") renderReelNew();
   else if (v.t === "inbox") renderInbox();
   else if (v.t === "chat") renderChat(v.id);
-  else ({ home: renderHome, friends: renderFriends, reels: () => renderSoon(v.t), market: () => renderSoon(v.t), search: renderSearch })[v.t]();
+  else ({ home: renderHome, friends: renderFriends, reels: renderReels, market: () => renderSoon(v.t), search: renderSearch })[v.t]();
 }
 function navTo(v, replace){
   const n0 = (history.state && history.state.n) || 0;

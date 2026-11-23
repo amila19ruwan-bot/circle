@@ -151,3 +151,11 @@ Note: `likes` and `comments` both link posts and profiles, so any query that emb
 ## v22
 - New app icon from the Circle logo: `icon-192.png`, `icon-512.png`, `icon-maskable-512.png`, `apple-touch-icon.png`; `manifest.webmanifest` rewritten (id, PNG icons incl. maskable, portrait, standalone) so Chrome installs it as a real app.
 - Install popup: Chrome's `beforeinstallprompt` is captured and a bottom card (Install / ✕) appears automatically; closing it hides it for 3 days. Settings also shows an Install Circle button while the app is installable.
+
+## v23: Reels
+- Run `migration-reels-v23.sql` once (bucket `reels`, tables `reels`, `reel_likes`, `reel_comments`, RLS, grants) BEFORE uploading the v23 files.
+- New files `reels.js` and `reels.css` (loaded from `index.html`); `app.js` only routes the `reels` and `reelnew` views.
+- Reels tab: full-screen vertical feed (scroll-snap), the visible video autoplays (muted at first, sound button top left), tap to pause, like, comments sheet, share, delete own. ＋ button (top right) opens the New reel page (Gallery / Camera, caption, preview).
+- Limits (free Supabase plan): max 60 s and 30 MB per video, MP4 / WebM / MOV. Videos load only when they are the current or next reel to save egress (5 GB / month free).
+- Possible later: compress videos in the browser before upload, move videos to Cloudflare R2 when the free storage runs out.
+
