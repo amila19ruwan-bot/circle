@@ -101,6 +101,7 @@ async function boot(user){
   updateHeader();
   startRealtime();
   startPresence();
+  blocksP = loadBlocks();
   const st = history.state && history.state.t ? history.state : { t: "home", n: 0 };
   try { history.replaceState(st, ""); } catch (e) {}
   show(st);
@@ -121,14 +122,14 @@ async function refreshBell(){
 let lastUnread = 0, rtOk = false;
 /* ---------- navigation (with phone Back button support) ---------- */
 let cur = null;
-const TITLES = { home: "Circle", friends: "Friends", reels: "Reels", market: "Marketplace", me: "My profile", profile: "Profile", edit: "Edit profile", saved: "Saved", post: "Post", search: "Search", inbox: "Messages", chat: "Chat" };
+const TITLES = { home: "Circle", friends: "Friends", reels: "Reels", market: "Marketplace", me: "My profile", profile: "Profile", edit: "Edit profile", saved: "Saved", post: "Post", search: "Search", inbox: "Messages", chat: "Chat", settings: "Settings", compose: "New post" };
 function show(v, keep){
   cur = v; tab = v.t;
   closeLb();
   if (v.t !== "chat") stopChatPoll();
   $("app").classList.toggle("chatmode", v.t === "chat");
   $("app").dataset.view = v.t;
-  const hl = v.t === "edit" ? "me" : v.t;
+  const hl = v.t === "edit" || v.t === "settings" ? "me" : v.t === "compose" ? "home" : v.t;
   TABS.forEach(x => $("t-" + x).classList.toggle("on", x === hl));
   $("title").textContent = TITLES[v.t] || "Circle";
   $("title").classList.toggle("long", ($("title").textContent || "").length > 8);
@@ -139,6 +140,8 @@ function show(v, keep){
   else if (v.t === "edit") renderEdit();
   else if (v.t === "saved") renderSaved();
   else if (v.t === "post") renderPost(v.id);
+  else if (v.t === "settings") renderSettings();
+  else if (v.t === "compose") renderCompose();
   else if (v.t === "inbox") renderInbox();
   else if (v.t === "chat") renderChat(v.id);
   else ({ home: renderHome, friends: renderFriends, reels: () => renderSoon(v.t), market: () => renderSoon(v.t), search: renderSearch })[v.t]();
@@ -178,7 +181,7 @@ async function renderHome(){
   pickedFile = null;
   $("main").innerHTML = `<div class="card comp"><div class="row"><span class="avwrap">${avatar(me.name, false, me.avatar_url)}<i class="dot"></i></span><textarea id="p-body" rows="1" maxlength="1000" placeholder="What is on your mind?" aria-label="New post" oninput="this.style.height='auto';this.style.height=Math.max(40,this.scrollHeight)+'px'" onfocus="this.closest('.comp').classList.add('typing')" onblur="if(!this.value)this.closest('.comp').classList.remove('typing')" style="flex:1"></textarea>
   <div class="cbar">
-   <button onclick="$('p-file').click()"><svg viewBox="0 0 24 24"><path d="M4 8h3l2-3h6l2 3h3a1 1 0 0 1 1 1v10a1 1 0 0 1-1 1H4a1 1 0 0 1-1-1V9a1 1 0 0 1 1-1z" fill="currentColor"/><circle cx="12" cy="13.5" r="3.5" fill="#fff"/></svg>Photo</button>
+   <button onclick="openCompose()"><svg viewBox="0 0 24 24"><path d="M4 8h3l2-3h6l2 3h3a1 1 0 0 1 1 1v10a1 1 0 0 1-1 1H4a1 1 0 0 1-1-1V9a1 1 0 0 1 1-1z" fill="currentColor"/><circle cx="12" cy="13.5" r="3.5" fill="#fff"/></svg>Photo</button>
    <button onclick="go('reels')"><svg viewBox="0 0 24 24"><rect x="3" y="9" width="18" height="11" rx="2.5" fill="currentColor"/><path d="M3.5 9L5 4.5l4.5 1L8 9M10.5 9L12 5.5l4.5 1L15 9M17 9l1.5-3.5L21 6" fill="currentColor"/><path d="M10.3 12.5v4.2l3.8-2.1z" fill="#fff" stroke="none"/></svg>Reels</button>
    <button id="p-go" onclick="addPost()"><svg viewBox="0 0 24 24"><path d="M4 20l1-4L16 5l3 3L8 19z" fill="currentColor"/><path d="M14 7l3 3" stroke="#fff"/></svg>Post</button>
   </div></div><div id="prev"></div><input id="p-file" type="file" accept="image/*" class="hidden" onchange="pickPhoto(this)"></div><div id="feed"><div class="empty">Loading…</div></div>`;
@@ -460,7 +463,9 @@ async function renderProfile(id){
     const isFr = fr && fr.status === "accepted";
     h += `<button class="btn alt" ${isFr ? 'style="flex:none;width:50px;padding:0" aria-label="Share"' : ""} onclick="shareProfile('${esc(u.name).replace(/'/g, "")}')">${ic("share")}${isFr ? "" : "Share"}</button>`;
   }
-  h += `</div></div>`;
+  h += `</div>`;
+  if (!mine) h += `<div class="btns"><button class="btn soft" style="width:100%" onclick="${blockSet.has(id) ? "unblockUser" : "blockUser"}('${id}')">🚫 ${blockSet.has(id) ? "Unblock" : "Block"}</button></div>`;
+  h += `</div>`;
   const rows = introRows(u);
   if (rows.length || mine){
     h += `<div class="card intro"><svg class="swoosh" viewBox="0 0 120 74" aria-hidden="true"><path d="M30 0C80 4 112 30 120 74V0z" fill="rgba(90,140,255,.22)"/><path d="M62 0C98 6 116 26 120 52V0z" fill="#2F6BFF"/></svg><div class="ihead"><i>${ic("user")}</i>Intro</div>${rows.map(r => `<div class="irow"><span class="ico">${ic(r[0])}</span><span>${r[1]}</span></div>`).join("")}`;
@@ -471,7 +476,7 @@ async function renderProfile(id){
     h += `<div class="card"><div class="ctitle">Friends <small>${fcount} total</small></div><div class="fgrid">${fppl.map(p => `<div class="f">${avatar(p.name, false, p.avatar_url, p.id)}<div class="nmx">${esc(p.name)}</div></div>`).join("")}</div><div class="btns"><button class="btn soft" style="width:100%" onclick="go('friends')">See all friends</button></div></div>`;
   }
   h += `<div class="seg"><button id="sg-posts" class="on" onclick="setPfTab('posts')">${ic("grid")}Posts</button><button id="sg-photos" onclick="setPfTab('photos')">${ic("img")}Photos</button><button id="sg-videos" onclick="setPfTab('videos')">${ic("vid")}Videos</button></div><div id="feed"><div class="empty">Loading…</div></div>`;
-  if (mine) h += `<div class="card"><button class="btn alt" style="width:100%;margin-bottom:8px" onclick="openSaved()">🔖 Saved posts (${saved.size})</button><button class="btn alt" style="width:100%" onclick="logout()">Log out</button></div>`;
+  if (mine) h += `<div class="card"><button class="btn alt" style="width:100%;margin-bottom:8px" onclick="openSettings()">⚙️ Chat settings</button><button class="btn alt" style="width:100%;margin-bottom:8px" onclick="openSaved()">🔖 Saved posts (${saved.size})</button><button class="btn alt" style="width:100%" onclick="logout()">Log out</button></div>`;
   $("main").innerHTML = h;
   if (mine) updateHeader();
   loadFeed(id);
@@ -579,20 +584,19 @@ function unlockAudio(){
 }
 ["click", "touchstart", "keydown"].forEach(ev => document.addEventListener(ev, unlockAudio, { passive: true }));
 function tone(kind){
+  const k = kind === "in" ? "in" : "out";
   try {
-    if (!audioCtx || audioCtx.state !== "running") return;
-    const t = audioCtx.currentTime;
-    const notes = kind === "in" ? [[880, 0], [1175, 0.13]] : [[620, 0], [820, 0.07]];
-    notes.forEach(([f, d]) => {
-      const o = audioCtx.createOscillator(), g = audioCtx.createGain();
+    const t = TONES[cfg[k + "Tone"]] || TONES.chime;
+    if (audioCtx && audioCtx.state === "running") t[1].forEach(([f, d, len]) => {
+      const now = audioCtx.currentTime, o = audioCtx.createOscillator(), g = audioCtx.createGain();
       o.type = "sine"; o.frequency.value = f;
-      g.gain.setValueAtTime(0.0001, t + d);
-      g.gain.exponentialRampToValueAtTime(kind === "in" ? 0.3 : 0.15, t + d + 0.02);
-      g.gain.exponentialRampToValueAtTime(0.0001, t + d + 0.28);
-      o.connect(g); g.connect(audioCtx.destination); o.start(t + d); o.stop(t + d + 0.3);
+      g.gain.setValueAtTime(0.0001, now + d);
+      g.gain.exponentialRampToValueAtTime(k === "in" ? 0.3 : 0.18, now + d + 0.02);
+      g.gain.exponentialRampToValueAtTime(0.0001, now + d + len);
+      o.connect(g); g.connect(audioCtx.destination); o.start(now + d); o.stop(now + d + len + 0.02);
     });
-    if (kind === "in" && navigator.vibrate) navigator.vibrate(70);
   } catch (e) {}
+  try { const v = VIBS[cfg[k + "Vib"]]; if (v && v[1].length && navigator.vibrate) navigator.vibrate(v[1]); } catch (e) {}
 }
 
 /* ---------- realtime (instant messages) ---------- */
@@ -609,7 +613,7 @@ function startRealtime(){
   } catch (e) {}
 }
 function onIncoming(m){
-  if (!m) return;
+  if (!m || blockSet.has(m.sender)) return;
   sb.from("messages").update({ delivered_at: new Date().toISOString() }).eq("id", m.id).is("delivered_at", null).then(() => {}, () => {});
   const inThis = cur && cur.t === "chat" && cur.id === m.sender;
   tone("in");
@@ -673,8 +677,13 @@ const ICON_INFO = `<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 11v6
 /* ---------- messages ---------- */
 let chatId = null, chatKey = "", chatPoll = null, chatServer = [], chatPending = [];
 function stopChatPoll(){ if (chatPoll){ clearInterval(chatPoll); chatPoll = null; } }
+const ICON_MORE = `<svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="5" r="1.8" fill="currentColor"/><circle cx="12" cy="12" r="1.8" fill="currentColor"/><circle cx="12" cy="19" r="1.8" fill="currentColor"/></svg>`;
 const ICON_SEND = `<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M22 2L11 13M22 2l-7 20-4-9-9-4z"/></svg>`;
-function msgErr(m){ return /relation|schema cache|does not exist|permission denied/i.test(m) ? "Messages need migration-5.sql to be run in Supabase first." : m; }
+function msgErr(m){
+  if (/image_url|hide_seen|blocks/i.test(m)) return "Run migration-chat-v17.sql in Supabase first.";
+  if (/row-level security/i.test(m)) return "You can't message this person.";
+  return /relation|schema cache|does not exist|permission denied/i.test(m) ? "Messages need migration-5.sql to be run in Supabase first." : m;
+}
 function clock(t){ return new Date(t).toLocaleTimeString([], { hour: "numeric", minute: "2-digit" }); }
 function dayLabel(t){
   const d = new Date(t), n = new Date(), y = new Date(); y.setDate(n.getDate() - 1);
@@ -683,7 +692,7 @@ function dayLabel(t){
   return d.toLocaleDateString("en", { month: "short", day: "numeric", year: d.getFullYear() === n.getFullYear() ? undefined : "numeric" });
 }
 /* status of my message: sending / sent / delivered / seen */
-function msgState(m){ return m.pending ? "sending" : m.read_at ? "seen" : m.delivered_at ? "delivered" : "sent"; }
+function msgState(m){ return m.pending ? "sending" : (m.read_at && !m.hide_seen) ? "seen" : (m.delivered_at || m.read_at) ? "delivered" : "sent"; }
 const TICK1 = `<svg class="tk" viewBox="0 0 16 16" aria-hidden="true"><path d="M3 8.5l3.2 3.2L13 5"/></svg>`;
 const TICK2 = `<svg class="tk tk2" viewBox="0 0 22 16" aria-hidden="true"><path d="M2 8.5l3.2 3.2L12 5"/><path d="M9 11.5l.7.7L18 5"/></svg>`;
 const TICKW = `<svg class="tk" viewBox="0 0 16 16" aria-hidden="true"><circle cx="8" cy="8" r="5.5"/><path d="M8 5v3.2l2 1.3"/></svg>`;
@@ -706,6 +715,7 @@ async function renderInbox(){
     let c = conv.get(o); if (!c){ c = { id: o, last: m, unread: 0 }; conv.set(o, c); }
     if (m.receiver === me.id && !m.read_at) c.unread++;
   });
+  pins.forEach(pid => { if (!conv.has(pid)) conv.set(pid, { id: pid, last: null, unread: 0 }); });
   const fids = (fa || []).map(f => f.requester === me.id ? f.addressee : f.requester).filter(i => !conv.has(i));
   const ids = [...new Set([...conv.keys(), ...fids])];
   let ppl = {};
@@ -713,10 +723,11 @@ async function renderInbox(){
   if (!(cur && cur.t === "inbox")) return;
   let h = "";
   if (conv.size){
-    h += [...conv.values()].map(c => {
+    const list = [...conv.values()].sort((a, b) => { const x = pins.indexOf(a.id), y = pins.indexOf(b.id); return x > -1 && y > -1 ? x - y : x > -1 ? -1 : y > -1 ? 1 : 0; });
+    h += list.map(c => {
       const p = ppl[c.id]; if (!p) return "";
-      const mine = c.last.sender === me.id;
-      return `<div class="card crow${c.unread ? " un" : ""}" onclick="openChat('${c.id}')">${avOn(p)}<div class="mid"><div class="top"><span class="name">${esc(p.name)}</span><span class="meta">${ago(c.last.created_at)}</span></div><div class="last">${mine ? `<span class="tkl s-${msgState(c.last)}">${tickHtml(msgState(c.last))}</span>` : ""}${esc(c.last.body)}</div></div>${c.unread ? `<span class="ubadge">${c.unread > 9 ? "9+" : c.unread}</span>` : ""}</div>`;
+      const pinned = pins.includes(c.id), L = c.last, mine = L && L.sender === me.id;
+      return `<div class="card crow${c.unread ? " un" : ""}" onclick="openChat('${c.id}')">${avOn(p)}<div class="mid"><div class="top"><span class="name">${esc(p.name)}</span><span class="tr"><span class="meta">${L ? ago(L.created_at) : ""}</span><button class="pinb${pinned ? " on" : ""}" onclick="event.stopPropagation();togglePin('${c.id}')" aria-label="Pin chat">📌</button></span></div><div class="last">${L ? (mine && cfg.ticks ? `<span class="tkl s-${msgState(L)}">${tickHtml(msgState(L))}</span>` : "") + esc(L.body) : "Tap to send a message"}</div></div>${c.unread ? `<span class="ubadge">${c.unread > 9 ? "9+" : c.unread}</span>` : ""}</div>`;
     }).join("");
   } else {
     h += `<div class="empty">No messages yet. Pick a friend below to start chatting.</div>`;
@@ -732,7 +743,7 @@ async function renderInbox(){
 async function renderChat(id){
   stopChatPoll();
   chatId = id; chatKey = ""; chatServer = []; chatPending = [];
-  $("main").innerHTML = `<div class="chat"><div class="chat-top"><button class="bk" onclick="goBack()" aria-label="Back">${ICON_BACK}</button><div id="chat-who" class="chat-who"></div><div class="chat-act"><button class="hb" onclick="soon('Voice calls are coming soon')" aria-label="Voice call">${ICON_PHONE}</button><button class="hb" onclick="soon('Video calls are coming soon')" aria-label="Video call">${ICON_VIDEO}</button><button class="hb" onclick="openProfile('${id}')" aria-label="Profile info">${ICON_INFO}</button></div></div><div id="chat-list" class="chat-list"><div class="empty">Loading…</div></div><div id="chat-foot"></div></div>`;
+  $("main").innerHTML = `<div class="chat"><div class="chat-top"><button class="bk" onclick="goBack()" aria-label="Back">${ICON_BACK}</button><div id="chat-who" class="chat-who"></div><div class="chat-act"><button class="hb" onclick="soon('Voice calls are coming soon')" aria-label="Voice call">${ICON_PHONE}</button><button class="hb" onclick="soon('Video calls are coming soon')" aria-label="Video call">${ICON_VIDEO}</button><button class="hb" onclick="chatMenu()" aria-label="More">${ICON_MORE}</button></div></div><div id="chat-list" class="chat-list"><div class="empty">Loading…</div></div><div id="chat-foot"></div></div>`;
   const [{ data: u }, { data: f }] = await Promise.all([
     sb.from("profiles").select("id,name,avatar_url").eq("id", id).maybeSingle(),
     sb.from("friendships").select("id").eq("status", "accepted")
@@ -744,8 +755,11 @@ async function renderChat(id){
   $("chat-who").onclick = () => openProfile(id);
   paintChatStatus();
   $("chat-foot").innerHTML = f
-    ? `<div id="emo" class="emo-tray hidden">${EMOJIS.map(e => `<button onmousedown="event.preventDefault()" onclick="addEmo('${e}')" aria-label="${e}">${e}</button>`).join("")}</div><div class="chat-bar"><div class="cb-field"><button class="cb-ico" onmousedown="event.preventDefault()" onclick="toggleEmo()" aria-label="Emoji">${ICON_SMILE}</button><textarea id="chat-in" rows="1" maxlength="1000" placeholder="Message…" aria-label="Message" oninput="this.style.height='auto';this.style.height=Math.min(120,Math.max(46,this.scrollHeight))+'px'" onfocus="setTimeout(chatBottom,350)"></textarea><button class="cb-ico" onclick="soon('Sending photos in chat is coming soon')" aria-label="Attach">${ICON_CLIP}</button></div><button class="btn send" id="chat-send" onclick="sendChat()" aria-label="Send">${ICON_SEND}</button></div>`
+    ? `<div id="emo" class="emo-tray hidden">${EMOJIS.map(e => `<button onmousedown="event.preventDefault()" onclick="addEmo('${e}')" aria-label="${e}">${e}</button>`).join("")}</div><div class="chat-bar"><div class="cb-field"><button class="cb-ico" onmousedown="event.preventDefault()" onclick="toggleEmo()" aria-label="Emoji">${ICON_SMILE}</button><textarea id="chat-in" rows="1" maxlength="1000" placeholder="Message…" aria-label="Message" oninput="this.style.height='auto';this.style.height=Math.min(120,Math.max(46,this.scrollHeight))+'px'" onfocus="setTimeout(chatBottom,350)"></textarea><button class="cb-ico" onclick="$('chat-file').click()" aria-label="Attach">${ICON_CLIP}</button><input id="chat-file" type="file" accept="image/*" class="hidden" onchange="sendChatPhoto(this)"></div><button class="btn send" id="chat-send" onclick="sendChat()" aria-label="Send">${ICON_SEND}</button></div>`
     : `<div class="chat-note">You can only message people who are your friends.</div>`;
+  await blocksP;
+  if (f && blockSet.has(id)) $("chat-foot").innerHTML = `<div class="chat-note">You blocked this person. <button class="lnk" onclick="unblockUser('${id}')">Unblock</button></div>`;
+  else if (f && blockedBy.has(id)) $("chat-foot").innerHTML = `<div class="chat-note">You can't message this person.</div>`;
   await loadChat(true);
   chatPoll = setInterval(() => { if (!document.hidden) loadChat(false); }, rtOk ? 6000 : 2500);
 }
@@ -762,11 +776,12 @@ function drawChat(first){
   msgs.forEach(m => {
     const d = dayLabel(m.created_at);
     if (d !== lastDay){ html += `<div class="dsep">${esc(d)}</div>`; lastDay = d; }
-    const mine = m.sender === me.id, st = mine ? msgState(m) : "";
-    html += `<div class="msg ${mine ? "me" : "them"}${emojiOnly(m.body) ? " emo" : ""}">${esc(m.body)}<i>${clock(m.created_at)}${mine ? `<span class="tkl s-${st}">${tickHtml(st)}</span>` : ""}</i></div>`;
+    const mine = m.sender === me.id, st = mine && cfg.ticks ? msgState(m) : "";
+    const cap = m.image_url && m.body === "📷 Photo" ? "" : esc(m.body);
+    html += `<div class="msg ${mine ? "me" : "them"}${!m.image_url && emojiOnly(m.body) ? " emo" : ""}${m.image_url ? " img" : ""}">${m.image_url ? `<img class="mimg" src="${esc(m.image_url)}" alt="Photo" onclick="openPhoto(this.src)">` : ""}${cap}<i>${clock(m.created_at)}${st ? `<span class="tkl s-${st}">${tickHtml(st)}</span>` : ""}</i></div>`;
   });
   const last = msgs[msgs.length - 1];
-  if (last && last.sender === me.id){
+  if (cfg.ticks && last && last.sender === me.id){
     const st = msgState(last);
     html += `<div class="seen s-${st}">${st === "sending" ? "Sending…" : st === "sent" ? "Sent" : st === "delivered" ? "Delivered" : "Seen"}</div>`;
   }
@@ -784,7 +799,9 @@ async function loadChat(first){
   chatServer = data.slice().reverse();
   drawChat(first);
   if (chatServer.some(m => m.sender === id && !m.read_at)){
-    await sb.from("messages").update({ read_at: new Date().toISOString(), delivered_at: new Date().toISOString() }).eq("sender", id).eq("receiver", me.id).is("read_at", null);
+    const now = new Date().toISOString(), upd = { read_at: now, delivered_at: now };
+    if (!cfg.rr) upd.hide_seen = true;
+    await sb.from("messages").update(upd).eq("sender", id).eq("receiver", me.id).is("read_at", null);
     refreshBell();
   }
 }
@@ -799,6 +816,150 @@ async function sendChat(){
   chatPending = chatPending.filter(m => m !== tmp);
   if (error){ drawChat(true); el.value = body; return alert(msgErr(error.message)); }
   chatServer.push(data); drawChat(true); tone("out");
+}
+
+/* ---------- settings (tones, vibration, seen), stored on this phone ---------- */
+const TONES = {
+  chime: ["Chime", [[880, 0, .28], [1175, .13, .3]]], bell: ["Bell", [[1318, 0, .5], [1760, .02, .4]]],
+  drop: ["Drop", [[900, 0, .12], [500, .08, .2]]], pop: ["Pop", [[620, 0, .1], [820, .07, .14]]],
+  marimba: ["Marimba", [[523, 0, .18], [659, .1, .18], [784, .2, .25]]], beep: ["Beep", [[1000, 0, .12], [1000, .18, .12]]],
+  off: ["Off", []]
+};
+const VIBS = {
+  short: ["Short", [60]], double: ["Double", [70, 70, 70]], long: ["Long", [220]],
+  triple: ["Triple", [60, 50, 60, 50, 60]], pulse: ["Pulse", [80, 60, 160]], off: ["Off", []]
+};
+let cfg = { inTone: "chime", outTone: "pop", inVib: "double", outVib: "short", ticks: true, rr: true };
+try { Object.assign(cfg, JSON.parse(localStorage.getItem("circle_cfg") || "{}")); } catch (e) {}
+function saveCfg(){ try { localStorage.setItem("circle_cfg", JSON.stringify(cfg)); } catch (e) {} }
+function pickCfg(key, val, kind){ cfg[key] = val; saveCfg(); unlockAudio(); tone(kind); drawSettings(); }
+function flipCfg(key){ cfg[key] = !cfg[key]; saveCfg(); drawSettings(); }
+function openSettings(){ navTo({ t: "settings" }); }
+function chips(key, map, kind){ return `<div class="chips">${Object.entries(map).map(([k, v]) => `<button class="chip${cfg[key] === k ? " on" : ""}" onclick="pickCfg('${key}','${k}','${kind}')">${v[0]}</button>`).join("")}</div>`; }
+function swRow(key, label, sub){ return `<div class="swrow" onclick="flipCfg('${key}')"><div><b>${label}</b><small>${sub}</small></div><span class="sw${cfg[key] ? " on" : ""}"><i></i></span></div>`; }
+let blkPpl = [];
+function renderSettings(){ drawSettings(); fillBlocked(); }
+function drawSettings(){
+  const m = $("main"), y = m.scrollTop;
+  m.innerHTML = `<div class="card"><div class="ctitle">Incoming message</div><div class="meta">Tone (tap to hear it)</div>${chips("inTone", TONES, "in")}<div class="meta">Vibration</div>${chips("inVib", VIBS, "in")}</div>
+  <div class="card"><div class="ctitle">When I send</div><div class="meta">Tone</div>${chips("outTone", TONES, "out")}<div class="meta">Vibration</div>${chips("outVib", VIBS, "out")}</div>
+  <div class="card"><div class="ctitle">Message status</div>${swRow("ticks", "Show Sent / Delivered / Seen", "Ticks and the status text under my messages")}${swRow("rr", "Let others see when I read", "If off, people see Delivered but never Seen")}</div>
+  <div class="card"><div class="ctitle">Blocked people</div><div id="blk-list"></div></div>`;
+  m.scrollTop = y; paintBlocked();
+}
+async function fillBlocked(){
+  const ids = [...blockSet];
+  blkPpl = [];
+  if (ids.length){ const { data } = await sb.from("profiles").select("id,name,avatar_url").in("id", ids); blkPpl = data || []; }
+  paintBlocked();
+}
+function paintBlocked(){
+  const el = $("blk-list"); if (!el) return;
+  el.innerHTML = blkPpl.length ? blkPpl.filter(p => blockSet.has(p.id)).map(p => `<div class="crow2">${avatar(p.name, false, p.avatar_url)}<b>${esc(p.name)}</b><button class="btn alt" onclick="unblockUser('${p.id}')">Unblock</button></div>`).join("") : `<div class="meta">No blocked people.</div>`;
+}
+
+/* ---------- block / unblock ---------- */
+let blockSet = new Set(), blockedBy = new Set(), blocksP = Promise.resolve();
+async function loadBlocks(){
+  const { data, error } = await sb.from("blocks").select("blocker,blocked");
+  if (error || !data) return;
+  blockSet = new Set(data.filter(b => b.blocker === me.id).map(b => b.blocked));
+  blockedBy = new Set(data.filter(b => b.blocked === me.id).map(b => b.blocker));
+}
+async function blockUser(id){
+  if (!confirm("Block this person? You will not be able to message each other.")) return;
+  const { error } = await sb.from("blocks").insert({ blocker: me.id, blocked: id });
+  if (error) return alert(/relation|schema cache|does not exist|permission/i.test(error.message) ? "Run migration-chat-v17.sql in Supabase first." : error.message);
+  blockSet.add(id); soon("Blocked"); if (cur && cur.t !== "settings") rerender(); else fillBlocked();
+}
+async function unblockUser(id){
+  const { error } = await sb.from("blocks").delete().eq("blocker", me.id).eq("blocked", id);
+  if (error) return alert(error.message);
+  blockSet.delete(id); soon("Unblocked"); if (cur && cur.t === "settings") fillBlocked(); else rerender();
+}
+
+/* ---------- pin up to 3 chats (kept on this phone) ---------- */
+let pins = [];
+try { pins = JSON.parse(localStorage.getItem("circle_pins") || "[]").slice(0, 3); } catch (e) {}
+function togglePin(id){
+  if (pins.includes(id)) pins = pins.filter(x => x !== id);
+  else if (pins.length >= 3) return soon("You can pin up to 3 chats");
+  else pins.push(id);
+  try { localStorage.setItem("circle_pins", JSON.stringify(pins)); } catch (e) {}
+  soon(pins.includes(id) ? "Pinned to top" : "Unpinned");
+  if (cur && cur.t === "inbox") renderInbox();
+}
+
+/* ---------- bottom sheet + chat menu ---------- */
+function closeSheet(){ const d = $("sheet"); if (d) d.remove(); }
+function sheet(items){
+  closeSheet();
+  const d = document.createElement("div"); d.id = "sheet"; d.className = "sheet";
+  d.onclick = e => { if (e.target === d) closeSheet(); };
+  d.innerHTML = `<div class="sheet-in">${items.map((it, i) => `<button class="${it.cls || ""}" data-i="${i}">${it.label}</button>`).join("")}<button class="cancel" data-i="-1">Cancel</button></div>`;
+  d.querySelectorAll("button").forEach(b => b.onclick = () => { const i = +b.dataset.i; closeSheet(); if (i >= 0) items[i].fn(); });
+  document.body.appendChild(d);
+}
+function chatMenu(){
+  const id = chatId;
+  sheet([
+    { label: pins.includes(id) ? "📌 Unpin chat" : "📌 Pin chat to top", fn: () => togglePin(id) },
+    { label: "⚙️ Tones & seen settings", fn: openSettings },
+    { label: "👤 View profile", fn: () => openProfile(id) },
+    blockSet.has(id) ? { label: "✅ Unblock", fn: () => unblockUser(id) } : { label: "🚫 Block", cls: "red", fn: () => blockUser(id) }
+  ]);
+}
+
+/* ---------- photos in chat ---------- */
+async function sendChatPhoto(input){
+  const f = input.files && input.files[0]; input.value = "";
+  if (!f || !chatId || blockSet.has(chatId)) return;
+  unlockAudio();
+  const el = $("chat-in"), cap = (el && el.value.trim()) || "📷 Photo";
+  const url = URL.createObjectURL(f);
+  const tmp = { id: "t" + Date.now(), sender: me.id, receiver: chatId, body: cap, image_url: url, created_at: new Date().toISOString(), pending: true };
+  chatPending.push(tmp); if (el){ el.value = ""; el.style.height = "46px"; } drawChat(true);
+  const fail = msg => { chatPending = chatPending.filter(m => m !== tmp); drawChat(true); alert(msg); };
+  const blob = await shrink(f), path = `${me.id}/chat-${Date.now()}.jpg`;
+  const { error: ue } = await sb.storage.from(BUCKET).upload(path, blob, { contentType: "image/jpeg" });
+  if (ue) return fail("Photo upload failed: " + ue.message);
+  const image_url = sb.storage.from(BUCKET).getPublicUrl(path).data.publicUrl;
+  const { data, error } = await sb.from("messages").insert({ sender: me.id, receiver: chatId, body: cap, image_url }).select("*").single();
+  chatPending = chatPending.filter(m => m !== tmp);
+  if (error) return fail(msgErr(error.message));
+  chatServer.push(data); drawChat(true); tone("out");
+}
+
+/* ---------- new post page (opens from the Photo icon) ---------- */
+let composeFile = null, composeDraft = "";
+function openCompose(){ const b = $("p-body"); composeDraft = b ? b.value : ""; navTo({ t: "compose" }); }
+function renderCompose(){
+  composeFile = null;
+  $("main").innerHTML = `<div class="card comp2"><div class="who">${avatar(me.name, false, me.avatar_url)}<b>${esc(me.name)}</b></div><textarea id="c-body" rows="5" maxlength="1000" placeholder="What is on your mind?" aria-label="New post"></textarea><div id="c-prev"></div><div class="copts"><button onclick="$('c-gal').click()">🖼️ Gallery</button><button onclick="$('c-cam').click()">📷 Camera</button></div><input id="c-gal" type="file" accept="image/*" class="hidden" onchange="pickCompose(this)"><input id="c-cam" type="file" accept="image/*" capture="environment" class="hidden" onchange="pickCompose(this)"><button class="btn" id="c-go" style="width:100%;margin-top:12px" onclick="submitCompose()">Post</button></div>`;
+  $("c-body").value = composeDraft; composeDraft = "";
+}
+function pickCompose(input){
+  const f = input.files && input.files[0]; input.value = "";
+  if (!f) return;
+  composeFile = f;
+  if (previewUrl) URL.revokeObjectURL(previewUrl);
+  previewUrl = URL.createObjectURL(f);
+  $("c-prev").innerHTML = `<div class="prev"><img src="${previewUrl}" alt="Selected photo"><button onclick="composeFile=null;$('c-prev').innerHTML=''" aria-label="Remove photo">✕</button></div>`;
+}
+async function submitCompose(){
+  const body = $("c-body").value.trim();
+  if (!body && !composeFile) return;
+  const btn = $("c-go"); btn.disabled = true; btn.textContent = "Posting…";
+  let image_url = null;
+  if (composeFile){
+    const blob = await shrink(composeFile), path = `${me.id}/${Date.now()}.jpg`;
+    const { error: ue } = await sb.storage.from(BUCKET).upload(path, blob, { contentType: "image/jpeg" });
+    if (ue){ btn.disabled = false; btn.textContent = "Post"; return alert("Photo upload failed: " + ue.message); }
+    image_url = sb.storage.from(BUCKET).getPublicUrl(path).data.publicUrl;
+  }
+  const { error } = await sb.from("posts").insert({ user_id: me.id, body, image_url });
+  if (error){ btn.disabled = false; btn.textContent = "Post"; return alert(error.message); }
+  goBack();
 }
 
 /* ---------- start ---------- */
