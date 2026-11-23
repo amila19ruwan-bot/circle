@@ -1176,12 +1176,8 @@ function paintPushSt(){
 /* Tell the server about a new message or call so it can send a push to the other person. Best effort. */
 async function pushNotify(to, payload){
   try {
-    const { data: { session } } = await sb.auth.getSession();
-    if (!session || !to) return;
-    await fetch(PUSH_URL, {
-      method: "POST",
-      headers: { "Content-Type": "application/json", "apikey": SUPABASE_KEY, "Authorization": "Bearer " + session.access_token },
-      body: JSON.stringify({ to, ...payload })
-    });
+    if (!me || !to) return;
+    const { error } = await sb.functions.invoke("send-push", { body: { to, ...payload } });
+    if (error) console.log("push error", error);
   } catch (e) {}
 }
