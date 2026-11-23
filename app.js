@@ -101,7 +101,7 @@ async function boot(user){
   updateHeader();
   startRealtime();
   startPresence();
-  blocksP = loadBlocks();
+  blocksP = loadBlocks(); beat();
   const st = history.state && history.state.t ? history.state : { t: "home", n: 0 };
   try { history.replaceState(st, ""); } catch (e) {}
   show(st);
@@ -129,7 +129,7 @@ function show(v, keep){
   if (v.t !== "chat") stopChatPoll();
   $("app").classList.toggle("chatmode", v.t === "chat");
   $("app").dataset.view = v.t;
-  const hl = v.t === "edit" || v.t === "settings" ? "me" : v.t === "compose" ? "home" : v.t;
+  const hl = v.t === "edit" ? "me" : v.t === "compose" ? "home" : v.t;
   TABS.forEach(x => $("t-" + x).classList.toggle("on", x === hl));
   $("title").textContent = TITLES[v.t] || "Circle";
   $("title").classList.toggle("long", ($("title").textContent || "").length > 8);
@@ -476,7 +476,7 @@ async function renderProfile(id){
     h += `<div class="card"><div class="ctitle">Friends <small>${fcount} total</small></div><div class="fgrid">${fppl.map(p => `<div class="f">${avatar(p.name, false, p.avatar_url, p.id)}<div class="nmx">${esc(p.name)}</div></div>`).join("")}</div><div class="btns"><button class="btn soft" style="width:100%" onclick="go('friends')">See all friends</button></div></div>`;
   }
   h += `<div class="seg"><button id="sg-posts" class="on" onclick="setPfTab('posts')">${ic("grid")}Posts</button><button id="sg-photos" onclick="setPfTab('photos')">${ic("img")}Photos</button><button id="sg-videos" onclick="setPfTab('videos')">${ic("vid")}Videos</button></div><div id="feed"><div class="empty">Loading…</div></div>`;
-  if (mine) h += `<div class="card"><button class="btn alt" style="width:100%;margin-bottom:8px" onclick="openSettings()">⚙️ Chat settings</button><button class="btn alt" style="width:100%;margin-bottom:8px" onclick="openSaved()">🔖 Saved posts (${saved.size})</button><button class="btn alt" style="width:100%" onclick="logout()">Log out</button></div>`;
+  if (mine) h += `<div class="card"><button class="btn alt" style="width:100%;margin-bottom:8px" onclick="openSaved()">🔖 Saved posts (${saved.size})</button><button class="btn alt" style="width:100%" onclick="logout()">Log out</button></div>`;
   $("main").innerHTML = h;
   if (mine) updateHeader();
   loadFeed(id);
@@ -586,15 +586,17 @@ function unlockAudio(){
 function tone(kind){
   const k = kind === "in" ? "in" : "out";
   try {
-    const t = TONES[cfg[k + "Tone"]] || TONES.chime;
-    if (audioCtx && audioCtx.state === "running") t[1].forEach(([f, d, len]) => {
+    const t = TONES[cfg[k + "Tone"]] || TONES.chime, vol = (VOLS[cfg.vol] || VOLS.high)[1] * (k === "in" ? 1 : .75) * .8;
+    const play = () => t[1].forEach(([f, d, len]) => {
       const now = audioCtx.currentTime, o = audioCtx.createOscillator(), g = audioCtx.createGain();
-      o.type = "sine"; o.frequency.value = f;
+      o.type = "triangle"; o.frequency.value = f;
       g.gain.setValueAtTime(0.0001, now + d);
-      g.gain.exponentialRampToValueAtTime(k === "in" ? 0.3 : 0.18, now + d + 0.02);
-      g.gain.exponentialRampToValueAtTime(0.0001, now + d + len);
-      o.connect(g); g.connect(audioCtx.destination); o.start(now + d); o.stop(now + d + len + 0.02);
+      g.gain.exponentialRampToValueAtTime(vol, now + d + 0.015);
+      g.gain.exponentialRampToValueAtTime(0.0001, now + d + len + 0.1);
+      o.connect(g); g.connect(audioCtx.destination); o.start(now + d); o.stop(now + d + len + 0.15);
     });
+    if (!audioCtx) unlockAudio();
+    if (audioCtx && t[1].length){ if (audioCtx.state === "running") play(); else audioCtx.resume().then(play).catch(() => {}); }
   } catch (e) {}
   try { const v = VIBS[cfg[k + "Vib"]]; if (v && v[1].length && navigator.vibrate) navigator.vibrate(v[1]); } catch (e) {}
 }
@@ -621,32 +623,60 @@ function onIncoming(m){
   else { refreshBell(); if (cur && cur.t === "inbox") renderInbox(); }
 }
 
-/* ---------- online status (Supabase presence, no SQL needed) ---------- */
-let pres = null, onlineIds = new Set(), presOk = false;
-const isOn = id => onlineIds.has(id);
+/* ---------- online status: Realtime presence + last_seen heartbeat ---------- */
+let pres = null, onlineIds = new Set(), presOk = false, seenAt = {}, seenOk = false;
+const isOn = id => onlineIds.has(id) || (seenAt[id] && Date.now() - seenAt[id] < 80000);
 function startPresence(){
-  if (pres || !me) return;
+  if (!me) return;
+  if (pres){ try { sb.removeChannel(pres); } catch (e) {} pres = null; }
   try {
     pres = sb.channel("online-users", { config: { presence: { key: me.id } } });
     pres.on("presence", { event: "sync" }, () => {
       onlineIds = new Set(Object.keys(pres.presenceState()));
       presOk = true; paintPresence();
-    }).subscribe(async st => { if (st === "SUBSCRIBED"){ try { await pres.track({ at: Date.now() }); } catch (e) {} } });
-    document.addEventListener("visibilitychange", () => {
-      if (!pres) return;
-      try { document.hidden ? pres.untrack() : pres.track({ at: Date.now() }); } catch (e) {}
-    });
+    }).subscribe(st => { if (st === "SUBSCRIBED" && cfg.online && !document.hidden) { try { pres.track({ at: Date.now() }); } catch (e) {} } });
   } catch (e) {}
 }
+function setPresence(){
+  if (!pres) return;
+  try { (cfg.online && !document.hidden) ? pres.track({ at: Date.now() }) : pres.untrack(); } catch (e) {}
+}
+async function refreshSeen(){
+  if (!me) return;
+  const ids = new Set([...document.querySelectorAll(".avwrap[data-uid]")].map(e => e.dataset.uid));
+  if (cur && cur.t === "chat" && chatId) ids.add(chatId);
+  ids.delete(me.id);
+  if (!ids.size) return;
+  const { data, error } = await sb.from("profiles").select("id,last_seen").in("id", [...ids]);
+  if (error || !data) return;
+  seenOk = true;
+  data.forEach(p => { seenAt[p.id] = p.last_seen ? new Date(p.last_seen).getTime() : 0; });
+  paintPresence();
+}
+async function beat(){
+  if (!me || document.hidden) return;
+  if (cfg.online) sb.from("profiles").update({ last_seen: new Date().toISOString() }).eq("id", me.id).then(() => {}, () => {});
+  setPresence();
+  await refreshSeen();
+}
+document.addEventListener("visibilitychange", () => {
+  if (!me) return;
+  if (document.hidden) return setPresence();
+  if (pres && pres.state !== "joined") startPresence();
+  beat();
+  if (cur && cur.t === "chat") loadChat(false);
+});
+window.addEventListener("online", () => { if (me){ startPresence(); beat(); } });
+setInterval(beat, 25000);
 function paintChatStatus(){
   const w = $("chat-avw"), s = $("chat-sub"); if (!w || !s) return;
-  const on = isOn(chatId);
+  const on = !!isOn(chatId);
   w.classList.toggle("on", on);
-  s.textContent = presOk ? (on ? "Online" : "Offline") : "";
+  s.textContent = (presOk || seenOk) ? (on ? "Online" : "Offline") : "";
 }
 function paintPresence(){
   if (cur && cur.t === "chat") paintChatStatus();
-  document.querySelectorAll(".avwrap[data-uid]").forEach(el => el.classList.toggle("on", isOn(el.dataset.uid)));
+  document.querySelectorAll(".avwrap[data-uid]").forEach(el => el.classList.toggle("on", !!isOn(el.dataset.uid)));
 }
 
 /* ---------- small helpers for the chat look ---------- */
@@ -738,7 +768,7 @@ async function renderInbox(){
   } else if (!conv.size){
     h += `<div class="empty">Add some friends first, then you can message them.</div>`;
   }
-  $("main").innerHTML = h;
+  $("main").innerHTML = h; refreshSeen();
 }
 async function renderChat(id){
   stopChatPoll();
@@ -753,7 +783,7 @@ async function renderChat(id){
   if (!u){ $("chat-list").innerHTML = `<div class="empty">Person not found.</div>`; return; }
   $("chat-who").innerHTML = `<span class="avw" id="chat-avw">${avatar(u.name, false, u.avatar_url)}<i class="odot"></i></span><span class="wtx"><b>${esc(u.name)}</b><small id="chat-sub"></small></span>`;
   $("chat-who").onclick = () => openProfile(id);
-  paintChatStatus();
+  paintChatStatus(); refreshSeen();
   $("chat-foot").innerHTML = f
     ? `<div id="emo" class="emo-tray hidden">${EMOJIS.map(e => `<button onmousedown="event.preventDefault()" onclick="addEmo('${e}')" aria-label="${e}">${e}</button>`).join("")}</div><div class="chat-bar"><div class="cb-field"><button class="cb-ico" onmousedown="event.preventDefault()" onclick="toggleEmo()" aria-label="Emoji">${ICON_SMILE}</button><textarea id="chat-in" rows="1" maxlength="1000" placeholder="Message…" aria-label="Message" oninput="this.style.height='auto';this.style.height=Math.min(120,Math.max(46,this.scrollHeight))+'px'" onfocus="setTimeout(chatBottom,350)"></textarea><button class="cb-ico" onclick="$('chat-file').click()" aria-label="Attach">${ICON_CLIP}</button><input id="chat-file" type="file" accept="image/*" class="hidden" onchange="sendChatPhoto(this)"></div><button class="btn send" id="chat-send" onclick="sendChat()" aria-label="Send">${ICON_SEND}</button></div>`
     : `<div class="chat-note">You can only message people who are your friends.</div>`;
@@ -778,7 +808,7 @@ function drawChat(first){
     if (d !== lastDay){ html += `<div class="dsep">${esc(d)}</div>`; lastDay = d; }
     const mine = m.sender === me.id, st = mine && cfg.ticks ? msgState(m) : "";
     const cap = m.image_url && m.body === "📷 Photo" ? "" : esc(m.body);
-    html += `<div class="msg ${mine ? "me" : "them"}${!m.image_url && emojiOnly(m.body) ? " emo" : ""}${m.image_url ? " img" : ""}">${m.image_url ? `<img class="mimg" src="${esc(m.image_url)}" alt="Photo" onclick="openPhoto(this.src)">` : ""}${cap}<i>${clock(m.created_at)}${st ? `<span class="tkl s-${st}">${tickHtml(st)}</span>` : ""}</i></div>`;
+    html += `<div class="msg ${mine ? "me" : "them"}${!m.image_url && emojiOnly(m.body) ? " emo" : ""}${m.image_url ? " img" : ""}">${m.image_url ? `<img class="mimg" src="${esc(m.image_url)}" alt="Photo" onclick="openPhoto(this.src)">` : ""}${cap}<i>${clock(m.created_at)}</i></div>${st ? `<div class="tkrow s-${st}">${tickHtml(st)}</div>` : ""}`;
   });
   const last = msgs[msgs.length - 1];
   if (cfg.ticks && last && last.sender === me.id){
@@ -798,7 +828,7 @@ async function loadChat(first){
   if (error){ if (first) list.innerHTML = `<div class="empty">${esc(msgErr(error.message))}</div>`; return; }
   chatServer = data.slice().reverse();
   drawChat(first);
-  if (chatServer.some(m => m.sender === id && !m.read_at)){
+  if (!document.hidden && chatServer.some(m => m.sender === id && !m.read_at)){
     const now = new Date().toISOString(), upd = { read_at: now, delivered_at: now };
     if (!cfg.rr) upd.hide_seen = true;
     await sb.from("messages").update(upd).eq("sender", id).eq("receiver", me.id).is("read_at", null);
@@ -829,11 +859,18 @@ const VIBS = {
   short: ["Short", [60]], double: ["Double", [70, 70, 70]], long: ["Long", [220]],
   triple: ["Triple", [60, 50, 60, 50, 60]], pulse: ["Pulse", [80, 60, 160]], off: ["Off", []]
 };
-let cfg = { inTone: "chime", outTone: "pop", inVib: "double", outVib: "short", ticks: true, rr: true };
+const VOLS = { low: ["Low", .35], medium: ["Medium", .6], high: ["High", .9], max: ["Max", 1] };
+let cfg = { inTone: "chime", outTone: "pop", inVib: "double", outVib: "short", vol: "high", ticks: true, rr: true, online: true };
 try { Object.assign(cfg, JSON.parse(localStorage.getItem("circle_cfg") || "{}")); } catch (e) {}
 function saveCfg(){ try { localStorage.setItem("circle_cfg", JSON.stringify(cfg)); } catch (e) {} }
 function pickCfg(key, val, kind){ cfg[key] = val; saveCfg(); unlockAudio(); tone(kind); drawSettings(); }
-function flipCfg(key){ cfg[key] = !cfg[key]; saveCfg(); drawSettings(); }
+function flipCfg(key){
+  cfg[key] = !cfg[key]; saveCfg(); drawSettings();
+  if (key === "online"){
+    if (!cfg.online) sb.from("profiles").update({ last_seen: null }).eq("id", me.id).then(() => {}, () => {});
+    setPresence(); if (cfg.online) beat();
+  }
+}
 function openSettings(){ navTo({ t: "settings" }); }
 function chips(key, map, kind){ return `<div class="chips">${Object.entries(map).map(([k, v]) => `<button class="chip${cfg[key] === k ? " on" : ""}" onclick="pickCfg('${key}','${k}','${kind}')">${v[0]}</button>`).join("")}</div>`; }
 function swRow(key, label, sub){ return `<div class="swrow" onclick="flipCfg('${key}')"><div><b>${label}</b><small>${sub}</small></div><span class="sw${cfg[key] ? " on" : ""}"><i></i></span></div>`; }
@@ -841,9 +878,10 @@ let blkPpl = [];
 function renderSettings(){ drawSettings(); fillBlocked(); }
 function drawSettings(){
   const m = $("main"), y = m.scrollTop;
-  m.innerHTML = `<div class="card"><div class="ctitle">Incoming message</div><div class="meta">Tone (tap to hear it)</div>${chips("inTone", TONES, "in")}<div class="meta">Vibration</div>${chips("inVib", VIBS, "in")}</div>
+  m.innerHTML = `<button class="back" onclick="goBack()">‹ Back</button><div class="card"><div class="ctitle">Sound volume</div>${chips("vol", VOLS, "in")}</div><div class="card"><div class="ctitle">Incoming message</div><div class="meta">Tone (tap to hear it)</div>${chips("inTone", TONES, "in")}<div class="meta">Vibration</div>${chips("inVib", VIBS, "in")}</div>
   <div class="card"><div class="ctitle">When I send</div><div class="meta">Tone</div>${chips("outTone", TONES, "out")}<div class="meta">Vibration</div>${chips("outVib", VIBS, "out")}</div>
   <div class="card"><div class="ctitle">Message status</div>${swRow("ticks", "Show Sent / Delivered / Seen", "Ticks and the status text under my messages")}${swRow("rr", "Let others see when I read", "If off, people see Delivered but never Seen")}</div>
+  <div class="card"><div class="ctitle">Privacy</div>${swRow("online", "Show my Online status", "If off, nobody sees you as Online")}</div>
   <div class="card"><div class="ctitle">Blocked people</div><div id="blk-list"></div></div>`;
   m.scrollTop = y; paintBlocked();
 }

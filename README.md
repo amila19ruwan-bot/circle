@@ -132,3 +132,8 @@ Note: `likes` and `comments` both link posts and profiles, so any query that emb
 - Block / Unblock on profiles, in the chat ⋯ menu and in Settings (`blocks` table).
 - Pin up to 3 chats (📌 on each Messages row or chat ⋯ menu); stored on this phone (`circle_pins`).
 - Photos in chat via the paperclip (bucket `post-images`, body falls back to `📷 Photo`).
+
+## v18 changes
+- `migration-chat-v18.sql`: `profiles.last_seen` (Online heartbeat every 25 s; Online = Realtime presence OR last_seen under 80 s). Run once before uploading.
+- Settings now opens from the gear on the Messages screen (and chat ⋯ menu), not from the profile. New: Sound volume (Low..Max, louder tones) and Show my Online status switch.
+- Ticks sit under my messages: Sent = 1 grey tick, Delivered = 2 grey ticks, Seen = 2 blue ticks. A message is only marked Seen while the app is on screen.

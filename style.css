@@ -803,3 +803,10 @@ header .hwave{opacity:.5}
 .comp2 textarea{width:100%;border:0;outline:0;resize:none;font:inherit;font-size:18px;background:transparent;min-height:110px}
 .copts{display:flex;gap:10px;margin-top:10px}
 .copts button{flex:1;min-height:52px;border-radius:16px;border:1.5px solid #D6DEFF;background:#F4F7FF;font-size:16px;font-weight:700;color:var(--ink)}
+
+/* ---- v18: ticks under my messages, back button on settings ---- */
+.tkrow{align-self:flex-end;margin:-6px 8px 0 0;line-height:0;color:#8791B5}
+.tkrow .tk{width:17px;height:13px;stroke-width:2.3}
+.tkrow .tk.tk2{width:22px}
+.tkrow.s-seen{color:#1E78FF}
+.tkrow.s-sending{color:#B3BAD3}
