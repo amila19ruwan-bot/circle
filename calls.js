@@ -243,13 +243,13 @@ function toggleMute(){
   if (!call || !call.stream) return;
   call.muted = !call.muted;
   call.stream.getAudioTracks().forEach(t => t.enabled = !call.muted);
-  const b = document.getElementById("cl-mute"); if (b){ b.classList.toggle("off", call.muted); b.innerHTML = call.muted ? IC.micOff : IC.mic; }
+  const b = document.getElementById("cl-mute"); if (b){ b.classList.toggle("off", call.muted); b.innerHTML = call.muted ? CALL_IC.micOff : CALL_IC.mic; }
 }
 function toggleCam(){
   if (!call || !call.stream) return;
   call.camOff = !call.camOff;
   call.stream.getVideoTracks().forEach(t => t.enabled = !call.camOff);
-  const b = document.getElementById("cl-cam"); if (b){ b.classList.toggle("off", call.camOff); b.innerHTML = call.camOff ? IC.camOff : IC.cam; }
+  const b = document.getElementById("cl-cam"); if (b){ b.classList.toggle("off", call.camOff); b.innerHTML = call.camOff ? CALL_IC.camOff : CALL_IC.cam; }
 }
 async function flipCam(){
   const c = call; if (!c || c.kind !== "video" || !c.stream) return;
@@ -308,7 +308,7 @@ function drawCall(){
   paintBtns();
   const lv = document.getElementById("cl-lv"); if (lv && c.stream){ lv.srcObject = c.stream; lv.play().catch(() => {}); }
 }
-const IC = {
+const CALL_IC = {
   mic: '<svg viewBox="0 0 24 24"><rect x="9" y="3" width="6" height="11" rx="3" fill="currentColor"/><path d="M5 11a7 7 0 0 0 14 0M12 18v3" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg>',
   micOff: '<svg viewBox="0 0 24 24"><rect x="9" y="3" width="6" height="11" rx="3" fill="currentColor"/><path d="M5 11a7 7 0 0 0 14 0M12 18v3M4 4l16 16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg>',
   cam: '<svg viewBox="0 0 24 24"><rect x="2.5" y="6" width="13" height="12" rx="3" fill="currentColor"/><path d="M16 10.5l5-3v9l-5-3z" fill="currentColor"/></svg>',
@@ -325,11 +325,11 @@ function paintBtns(){
   }
   const w = (btn, label) => `<div class="cl-w">${btn}<span>${label}</span></div>`;
   b.innerHTML =
-    w(`<button id="cl-mute" class="cl-b ${c.muted ? "off" : ""}" onclick="toggleMute()" aria-label="Mute">${c.muted ? IC.micOff : IC.mic}</button>`, "Mute") +
-    (c.kind === "video" ? w(`<button id="cl-cam" class="cl-b ${c.camOff ? "off" : ""}" onclick="toggleCam()" aria-label="Video">${c.camOff ? IC.camOff : IC.cam}</button>`, "Video") : "") +
-    (c.kind === "video" ? w(`<button id="cl-share" class="cl-b ${c.sharing ? "on" : ""}" onclick="toggleShare()" aria-label="Screen share">${IC.share}</button>`, "Screen Share") : "") +
-    (c.kind === "video" ? w(`<button class="cl-b" onclick="flipCam()" aria-label="Switch camera">${IC.flip}</button>`, "Switch") : "") +
-    w(`<button class="cl-b red" onclick="hangUp()" aria-label="End call">${IC.end}</button>`, "End");
+    w(`<button id="cl-mute" class="cl-b ${c.muted ? "off" : ""}" onclick="toggleMute()" aria-label="Mute">${c.muted ? CALL_IC.micOff : CALL_IC.mic}</button>`, "Mute") +
+    (c.kind === "video" ? w(`<button id="cl-cam" class="cl-b ${c.camOff ? "off" : ""}" onclick="toggleCam()" aria-label="Video">${c.camOff ? CALL_IC.camOff : CALL_IC.cam}</button>`, "Video") : "") +
+    (c.kind === "video" ? w(`<button id="cl-share" class="cl-b ${c.sharing ? "on" : ""}" onclick="toggleShare()" aria-label="Screen share">${CALL_IC.share}</button>`, "Screen Share") : "") +
+    (c.kind === "video" ? w(`<button class="cl-b" onclick="flipCam()" aria-label="Switch camera">${CALL_IC.flip}</button>`, "Switch") : "") +
+    w(`<button class="cl-b red" onclick="hangUp()" aria-label="End call">${CALL_IC.end}</button>`, "End");
 }
 
 function setSt(t){
