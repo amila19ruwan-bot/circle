@@ -351,3 +351,22 @@ document.addEventListener("visibilitychange", () => { if (!document.hidden && ca
 
 /* start listening as soon as the user is logged in */
 setInterval(() => { try { if (typeof me !== "undefined" && me && !callCh) callsInit(); } catch (e) {} }, 1500);
+
+/* ---------- call screen: auto-hide buttons, swap big/small video ---------- */
+let clIdleT = null;
+function clWake(){
+  const ui = document.getElementById("call-ui"); if (!ui) return;
+  ui.classList.remove("cl-idle");
+  clearTimeout(clIdleT);
+  if (call && call.state === "connected") clIdleT = setTimeout(() => { const u = document.getElementById("call-ui"); if (u) u.classList.add("cl-idle"); }, 4000);
+}
+document.addEventListener("pointerdown", e => { if (e.target.closest && e.target.closest("#call-ui")) clWake(); }, true);
+setInterval(() => {
+  const ui = document.getElementById("call-ui");
+  if (ui && call && call.state === "connected" && !ui.dataset.armed){ ui.dataset.armed = "1"; clWake(); }
+}, 1000);
+document.addEventListener("click", e => {
+  const hit = e.target.closest && e.target.closest("#cl-lv, #cl-rv");
+  const ui = document.getElementById("call-ui");
+  if (hit && ui && call && call.kind === "video" && call.state === "connected") ui.classList.toggle("cl-swap");
+});

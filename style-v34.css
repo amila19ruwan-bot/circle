@@ -67,3 +67,9 @@ body {
 #call-ui .cl-b.red { background: linear-gradient(135deg, #f87171, #ef4444) !important; border-color: transparent !important; }
 #call-ui .cl-b.on { background: linear-gradient(135deg, #2f6bff, #0a3fd8) !important; }
 #call-ui .cl-b.off { opacity: 0.6; }
+
+/* call: buttons at the bottom, hide after a few seconds, swap big/small video */
+#call-ui .cl-btns { position: absolute !important; left: 0; right: 0; bottom: 0; transition: opacity 0.35s ease; }
+#call-ui.cl-idle .cl-btns { opacity: 0 !important; pointer-events: none !important; }
+#call-ui.cl-swap .cl-lv { inset: 0 !important; top: 0 !important; right: 0 !important; width: 100% !important; height: 100% !important; border-radius: 0 !important; border: 0 !important; z-index: 1 !important; }
+#call-ui.cl-swap .cl-rv { inset: auto !important; top: calc(env(safe-area-inset-top, 0px) + 14px) !important; right: 14px !important; width: 96px !important; height: 136px !important; border-radius: 14px; border: 2px solid rgba(255, 255, 255, 0.6); z-index: 3 !important; object-fit: cover; }
