@@ -315,19 +315,23 @@ const CALL_IC = {
   camOff: '<svg viewBox="0 0 24 24"><rect x="2.5" y="6" width="13" height="12" rx="3" fill="currentColor"/><path d="M16 10.5l5-3v9l-5-3zM3 3l18 18" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg>',
   share: '<svg viewBox="0 0 24 24"><rect x="3" y="4" width="18" height="12" rx="2" fill="none" stroke="currentColor" stroke-width="2"/><path d="M12 13V7M9 10l3-3 3 3M8 20h8" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg>',
   flip: '<svg viewBox="0 0 24 24"><path d="M4 9a8 8 0 0 1 14-3M20 15a8 8 0 0 1-14 3" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"/><path d="M18 3v4h-4M6 21v-4h4" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg>',
+  msg: '<svg viewBox="0 0 24 24"><path d="M4 5h16a1 1 0 0 1 1 1v10a1 1 0 0 1-1 1H9l-5 4v-4H4a1 1 0 0 1-1-1V6a1 1 0 0 1 1-1z" fill="currentColor"/></svg>',
   end: '<svg viewBox="0 0 24 24"><path d="M3 13c4-4 14-4 18 0l-2.5 3-3.5-2v-2c-2-.7-4-.7-6 0v2l-3.5 2L3 13z" fill="currentColor"/></svg>'
 };
 function paintBtns(){
   const c = call, b = document.getElementById("cl-btns"); if (!c || !b) return;
+  const w = (btn, label) => `<div class="cl-w">${btn}<span>${label}</span></div>`;
   if (c.state === "incoming"){
-    b.innerHTML = `<button class="cl-b red" onclick="endCall('decline')" aria-label="Decline">✖</button><button class="cl-b grn" onclick="acceptCall()" aria-label="Answer">${c.kind === "video" ? "📹" : "📞"}</button>`;
+    b.innerHTML =
+      w(`<button class="cl-b red" onclick="endCall('decline')" aria-label="Decline">${CALL_IC.end}</button>`, "Decline") +
+      w(`<button class="cl-b msg" onclick="msgFromCall()" aria-label="Message">${CALL_IC.msg}</button>`, "Message") +
+      w(`<button class="cl-b grn" onclick="acceptCall()" aria-label="Answer">${c.kind === "video" ? CALL_IC.cam : CALL_IC.mic}</button>`, "Answer");
     return;
   }
-  const w = (btn, label) => `<div class="cl-w">${btn}<span>${label}</span></div>`;
   b.innerHTML =
     w(`<button id="cl-mute" class="cl-b ${c.muted ? "off" : ""}" onclick="toggleMute()" aria-label="Mute">${c.muted ? CALL_IC.micOff : CALL_IC.mic}</button>`, "Mute") +
     (c.kind === "video" ? w(`<button id="cl-cam" class="cl-b ${c.camOff ? "off" : ""}" onclick="toggleCam()" aria-label="Video">${c.camOff ? CALL_IC.camOff : CALL_IC.cam}</button>`, "Video") : "") +
-    (c.kind === "video" ? w(`<button id="cl-share" class="cl-b ${c.sharing ? "on" : ""}" onclick="toggleShare()" aria-label="Screen share">${CALL_IC.share}</button>`, "Screen Share") : "") +
+    (c.kind === "video" && !CALL_IS_PHONE ? w(`<button id="cl-share" class="cl-b ${c.sharing ? "on" : ""}" onclick="toggleShare()" aria-label="Screen share">${CALL_IC.share}</button>`, "Screen Share") : "") +
     (c.kind === "video" ? w(`<button class="cl-b" onclick="flipCam()" aria-label="Switch camera">${CALL_IC.flip}</button>`, "Switch") : "") +
     w(`<button class="cl-b red" onclick="hangUp()" aria-label="End call">${CALL_IC.end}</button>`, "End");
 }
@@ -366,7 +370,16 @@ setInterval(() => {
   if (ui && call && call.state === "connected" && !ui.dataset.armed){ ui.dataset.armed = "1"; clWake(); }
 }, 1000);
 document.addEventListener("click", e => {
-  const hit = e.target.closest && e.target.closest("#cl-lv, #cl-rv");
   const ui = document.getElementById("call-ui");
-  if (hit && ui && call && call.kind === "video" && call.state === "connected") ui.classList.toggle("cl-swap");
+  if (!ui || !call || call.kind !== "video" || call.state !== "connected") return;
+  const small = ui.classList.contains("cl-swap") ? "#cl-rv" : "#cl-lv";
+  if (e.target.closest && e.target.closest(small)) ui.classList.toggle("cl-swap");
 });
+
+/* phones (Android Chrome) do not support screen capture, so hide that button there */
+const CALL_IS_PHONE = /Android|iPhone|iPad/i.test(navigator.userAgent);
+function msgFromCall(){
+  const id = call && (call.peer || call.caller);
+  endCall("decline");
+  if (id) openChat(id);
+}

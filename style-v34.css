@@ -73,3 +73,7 @@ body {
 #call-ui.cl-idle .cl-btns { opacity: 0 !important; pointer-events: none !important; }
 #call-ui.cl-swap .cl-lv { inset: 0 !important; top: 0 !important; right: 0 !important; width: 100% !important; height: 100% !important; border-radius: 0 !important; border: 0 !important; z-index: 1 !important; }
 #call-ui.cl-swap .cl-rv { inset: auto !important; top: calc(env(safe-area-inset-top, 0px) + 14px) !important; right: 14px !important; width: 96px !important; height: 136px !important; border-radius: 14px; border: 2px solid rgba(255, 255, 255, 0.6); z-index: 3 !important; object-fit: cover; }
+
+/* incoming call buttons */
+#call-ui .cl-b.msg { background: rgba(255, 255, 255, 0.28) !important; }
+#call-ui .cl-w span { font-size: 15px; font-weight: 600; }
