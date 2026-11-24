@@ -1,0 +1,277 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<meta name="robots" content="noindex">
+<meta name="theme-color" content="#0a3fd8">
+<title>Circle Admin</title>
+<style>
+  :root { --blue: #0a3fd8; --blue2: #2f6bff; --ink: #1b1f7a; --muted: #5a64b8; --red: #ef4444; --bg: #eef3ff; }
+  * { box-sizing: border-box; }
+  html, body { margin: 0; }
+  body { font-family: system-ui, -apple-system, "Segoe UI", Roboto, sans-serif; color: var(--ink); background: linear-gradient(180deg, #eef3ff 0%, #dbe6ff 55%, #cbbdfb 100%); min-height: 100vh; background-attachment: fixed; }
+  .hidden { display: none !important; }
+  header { background: linear-gradient(135deg, var(--blue2), var(--blue)); color: #fff; padding: calc(env(safe-area-inset-top, 0px) + 16px) 16px 16px; display: flex; align-items: center; justify-content: space-between; position: sticky; top: 0; z-index: 5; }
+  header h1 { font-size: 22px; margin: 0; }
+  header button { background: rgba(255,255,255,.2); color: #fff; border: 0; border-radius: 999px; padding: 8px 14px; font-weight: 700; }
+  main { padding: 14px 16px 40px; max-width: 720px; margin: 0 auto; }
+  .card { background: rgba(255,255,255,.95); border-radius: 24px; padding: 16px; box-shadow: 0 8px 22px rgba(20,40,160,.12); margin: 12px 0; }
+  .login { max-width: 380px; margin: 60px auto; }
+  .login h2 { margin: 0 0 14px; font-size: 22px; }
+  label { display: block; font-size: 13px; color: var(--muted); margin: 10px 0 4px; font-weight: 600; }
+  input, textarea { width: 100%; font: inherit; padding: 12px 14px; border-radius: 14px; border: 1px solid #c7d2fe; background: #fff; color: var(--ink); }
+  input:focus, textarea:focus { outline: 2px solid var(--blue2); border-color: transparent; }
+  .btn { width: 100%; margin-top: 14px; border: 0; border-radius: 999px; padding: 13px; font: inherit; font-weight: 800; color: #fff; background: linear-gradient(135deg, var(--blue2), var(--blue)); box-shadow: 0 6px 14px rgba(10,63,216,.35); cursor: pointer; }
+  .btn.sm { width: auto; margin: 0; padding: 8px 14px; font-size: 14px; }
+  .btn.del { background: linear-gradient(135deg, #f87171, var(--red)); box-shadow: 0 6px 14px rgba(239,68,68,.35); }
+  .btn.ghost { background: #fff; color: var(--blue); border: 2px solid var(--blue2); box-shadow: none; }
+  .stats { display: grid; grid-template-columns: repeat(2, 1fr); gap: 10px; }
+  .stat { background: rgba(255,255,255,.95); border-radius: 22px; padding: 14px; box-shadow: 0 8px 22px rgba(20,40,160,.12); }
+  .stat b { display: block; font-size: 26px; color: var(--blue); }
+  .stat span { color: var(--muted); font-size: 13px; }
+  .tabs { display: flex; gap: 8px; margin: 14px 0 4px; overflow-x: auto; }
+  .tab { flex: 1; border: 0; border-radius: 999px; padding: 10px 14px; background: #fff; color: var(--blue); font-weight: 800; box-shadow: 0 4px 12px rgba(20,40,160,.1); white-space: nowrap; }
+  .tab.on { background: linear-gradient(135deg, var(--blue2), var(--blue)); color: #fff; }
+  .row { display: flex; gap: 12px; align-items: center; }
+  .av { width: 46px; height: 46px; border-radius: 50%; background: linear-gradient(135deg, #a78bfa, #6366f1); color: #fff; display: grid; place-items: center; font-weight: 800; overflow: hidden; flex: 0 0 auto; }
+  .av img { width: 100%; height: 100%; object-fit: cover; }
+  .grow { flex: 1; min-width: 0; }
+  .name { font-weight: 800; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .meta { color: var(--muted); font-size: 13px; word-break: break-word; }
+  .body { margin: 8px 0; white-space: pre-wrap; word-break: break-word; }
+  .thumb { width: 100%; border-radius: 16px; margin-top: 8px; max-height: 360px; object-fit: cover; background: #e5e7eb; }
+  video.thumb { background: #000; }
+  .search { margin-bottom: 8px; }
+  .msg { min-height: 20px; color: #B42318; font-size: 14px; margin-top: 8px; }
+  .toast { position: fixed; left: 50%; bottom: 24px; transform: translateX(-50%); background: var(--ink); color: #fff; padding: 10px 16px; border-radius: 999px; font-size: 14px; z-index: 50; }
+  .empty { color: var(--muted); text-align: center; padding: 20px 0; }
+</style>
+</head>
+<body>
+
+<!-- LOGIN -->
+<div id="login" class="hidden">
+  <div class="card login">
+    <h2>Circle Admin</h2>
+    <form id="loginForm">
+      <label for="em">Email</label>
+      <input id="em" type="email" autocomplete="username" required>
+      <label for="pw">Password</label>
+      <input id="pw" type="password" autocomplete="current-password" required>
+      <button class="btn" type="submit">Log in</button>
+      <div id="loginMsg" class="msg"></div>
+    </form>
+  </div>
+</div>
+
+<!-- NOT ADMIN -->
+<div id="denied" class="hidden">
+  <div class="card login">
+    <h2>Not allowed</h2>
+    <p class="meta">This account is not an admin. Ask the owner to add it to the admins table.</p>
+    <button class="btn ghost" onclick="logout()">Log out</button>
+  </div>
+</div>
+
+<!-- PANEL -->
+<div id="panel" class="hidden">
+  <header>
+    <h1>Circle Admin</h1>
+    <button onclick="logout()">Log out</button>
+  </header>
+  <main>
+    <div class="stats" id="stats"></div>
+
+    <div class="tabs">
+      <button class="tab on" data-tab="users" onclick="setTab('users')">Users</button>
+      <button class="tab" data-tab="posts" onclick="setTab('posts')">Posts</button>
+      <button class="tab" data-tab="reels" onclick="setTab('reels')">Reels</button>
+    </div>
+
+    <div id="tabBody"></div>
+  </main>
+</div>
+
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.45.4/dist/umd/supabase.js"></script>
+<script>
+const SUPABASE_URL = "https://swmokmlkpkojbjevxunj.supabase.co";
+const SUPABASE_KEY = "sb_publishable_ZPXOX4-iPM2xRCwt--xx1g_LB0kjXZG";
+const sb = supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
+
+const $ = id => document.getElementById(id);
+const esc = s => String(s == null ? "" : s).replace(/[&<>"']/g, c => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
+const when = t => t ? new Date(t).toLocaleString() : "";
+let tab = "users";
+let userSearch = "";
+
+function toast(t){
+  const el = document.createElement("div");
+  el.className = "toast"; el.textContent = t;
+  document.body.appendChild(el);
+  setTimeout(() => el.remove(), 2200);
+}
+function showOnly(id){
+  ["login", "denied", "panel"].forEach(x => $(x).classList.toggle("hidden", x !== id));
+}
+
+async function start(){
+  const { data: { session } } = await sb.auth.getSession();
+  if (!session) return showOnly("login");
+  const { data, error } = await sb.rpc("is_admin");
+  if (error || data !== true) return showOnly("denied");
+  showOnly("panel");
+  loadStats();
+  loadTab();
+}
+
+$("loginForm").addEventListener("submit", async e => {
+  e.preventDefault();
+  $("loginMsg").textContent = "Checking…";
+  const { error } = await sb.auth.signInWithPassword({ email: $("em").value.trim(), password: $("pw").value });
+  if (error) { $("loginMsg").textContent = error.message; return; }
+  $("loginMsg").textContent = "";
+  start();
+});
+
+async function logout(){
+  await sb.auth.signOut();
+  location.reload();
+}
+
+/* ---------- stats ---------- */
+async function countOf(table){
+  const { count, error } = await sb.from(table).select("id", { count: "exact", head: true });
+  if (error) throw error;
+  return count || 0;
+}
+async function loadStats(){
+  const box = $("stats");
+  box.innerHTML = `<div class="stat"><span>Loading…</span></div>`;
+  try {
+    const [users, posts, reels, comments, friends] = await Promise.all([
+      countOf("profiles"), countOf("posts"), countOf("reels"), countOf("comments"), countOf("friendships")
+    ]);
+    box.innerHTML = [
+      ["Users", users], ["Posts", posts], ["Reels", reels], ["Comments", comments], ["Friend links", friends]
+    ].map(([l, n]) => `<div class="stat"><b>${n}</b><span>${l}</span></div>`).join("");
+  } catch (e) {
+    box.innerHTML = `<div class="stat"><span>Stats failed: ${esc(e.message)}</span></div>`;
+  }
+}
+
+/* ---------- tabs ---------- */
+function setTab(t){
+  tab = t;
+  document.querySelectorAll(".tab").forEach(b => b.classList.toggle("on", b.dataset.tab === t));
+  loadTab();
+}
+function loadTab(){
+  if (tab === "users") return loadUsers();
+  if (tab === "posts") return loadPosts();
+  return loadReels();
+}
+function setBody(html){ $("tabBody").innerHTML = html; }
+function avatarHtml(name, url){
+  return `<div class="av">${url ? `<img src="${esc(url)}" alt="">` : esc((name || "?").trim().charAt(0).toUpperCase())}</div>`;
+}
+
+/* ---------- users ---------- */
+function usersHtml(list){
+  if (!list.length) return `<div class="empty">No users found.</div>`;
+  return list.map(p => `
+    <div class="card">
+      <div class="row">
+        ${avatarHtml(p.name, p.avatar_url)}
+        <div class="grow">
+          <div class="name">${esc(p.name || "(no name)")}</div>
+          <div class="meta">Last seen: ${p.last_seen ? esc(when(p.last_seen)) : "never"}</div>
+          <div class="meta">ID: ${esc(p.id)}</div>
+        </div>
+      </div>
+      ${p.bio ? `<div class="body">${esc(p.bio)}</div>` : ""}
+      <div class="row" style="margin-top:10px">
+        <button class="btn sm del" onclick="deleteUserPosts('${esc(p.id)}')">Delete all their posts</button>
+      </div>
+    </div>`).join("");
+}
+async function loadUsers(){
+  setBody(`
+    <div class="card search"><input id="q" placeholder="Search by name" value="${esc(userSearch)}"></div>
+    <div id="list"><div class="empty">Loading…</div></div>`);
+  $("q").addEventListener("keydown", e => { if (e.key === "Enter") { userSearch = $("q").value.trim(); loadUsers(); } });
+  let q = sb.from("profiles").select("id,name,bio,avatar_url,last_seen").order("name").limit(100);
+  if (userSearch) q = q.ilike("name", "%" + userSearch + "%");
+  const { data, error } = await q;
+  $("list").innerHTML = error ? `<div class="msg">${esc(error.message)}</div>` : usersHtml(data || []);
+}
+async function deleteUserPosts(id){
+  if (!confirm("Delete ALL posts by this user? This cannot be undone.")) return;
+  const { data, error } = await sb.from("posts").delete().eq("user_id", id).select("id");
+  if (error) return toast("Error: " + error.message);
+  toast(`Deleted ${data ? data.length : 0} post(s)`);
+  loadStats();
+}
+
+/* ---------- posts ---------- */
+async function loadPosts(){
+  setBody(`<div id="list"><div class="empty">Loading…</div></div>`);
+  const { data, error } = await sb.from("posts").select("id,body,image_url,created_at,user_id,profiles!user_id(name,avatar_url)").order("created_at", { ascending: false }).limit(50);
+  if (error) { $("list").innerHTML = `<div class="msg">${esc(error.message)}</div>`; return; }
+  if (!data || !data.length) { $("list").innerHTML = `<div class="empty">No posts.</div>`; return; }
+  $("list").innerHTML = data.map(p => {
+    const pr = p.profiles || {};
+    return `
+    <div class="card">
+      <div class="row">
+        ${avatarHtml(pr.name, pr.avatar_url)}
+        <div class="grow"><div class="name">${esc(pr.name || "?")}</div><div class="meta">${esc(when(p.created_at))}</div></div>
+      </div>
+      ${p.body ? `<div class="body">${esc(p.body)}</div>` : ""}
+      ${p.image_url ? `<img class="thumb" src="${esc(p.image_url)}" alt="">` : ""}
+      <div class="row" style="margin-top:10px"><button class="btn sm del" onclick="deletePost('${esc(p.id)}')">Delete post</button></div>
+    </div>`;
+  }).join("");
+}
+async function deletePost(id){
+  if (!confirm("Delete this post?")) return;
+  const { data, error } = await sb.from("posts").delete().eq("id", id).select("id");
+  if (error) return toast("Error: " + error.message);
+  if (!data || !data.length) return toast("Not deleted (no permission)");
+  toast("Post deleted");
+  loadPosts(); loadStats();
+}
+
+/* ---------- reels ---------- */
+async function loadReels(){
+  setBody(`<div id="list"><div class="empty">Loading…</div></div>`);
+  const { data, error } = await sb.from("reels").select("id,caption,video_url,created_at,user_id,profiles!user_id(name,avatar_url)").order("created_at", { ascending: false }).limit(30);
+  if (error) { $("list").innerHTML = `<div class="msg">${esc(error.message)}</div>`; return; }
+  if (!data || !data.length) { $("list").innerHTML = `<div class="empty">No reels.</div>`; return; }
+  $("list").innerHTML = data.map(r => {
+    const pr = r.profiles || {};
+    return `
+    <div class="card">
+      <div class="row">
+        ${avatarHtml(pr.name, pr.avatar_url)}
+        <div class="grow"><div class="name">${esc(pr.name || "?")}</div><div class="meta">${esc(when(r.created_at))}</div></div>
+      </div>
+      ${r.caption ? `<div class="body">${esc(r.caption)}</div>` : ""}
+      ${r.video_url ? `<video class="thumb" src="${esc(r.video_url)}" controls preload="metadata" playsinline></video>` : ""}
+      <div class="row" style="margin-top:10px"><button class="btn sm del" onclick="deleteReel('${esc(r.id)}')">Delete reel</button></div>
+    </div>`;
+  }).join("");
+}
+async function deleteReel(id){
+  if (!confirm("Delete this reel?")) return;
+  const { data, error } = await sb.from("reels").delete().eq("id", id).select("id");
+  if (error) return toast("Error: " + error.message);
+  if (!data || !data.length) return toast("Not deleted (no permission)");
+  toast("Reel deleted");
+  loadReels(); loadStats();
+}
+
+start();
+</script>
+</body>
+</html>
