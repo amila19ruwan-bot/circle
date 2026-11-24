@@ -859,7 +859,7 @@ async function renderInbox(){
     h += list.map(c => {
       const p = ppl[c.id]; if (!p) return "";
       const pinned = pins.includes(c.id), L = c.last, mine = L && L.sender === me.id;
-      return `<div class="card crow${c.unread ? " un" : ""}" onclick="openChat('${c.id}')">${avOn(p)}<div class="mid"><div class="top"><span class="name">${esc(p.name)}</span><span class="tr"><span class="meta">${L ? ago(L.created_at) : ""}</span><button class="pinb${pinned ? " on" : ""}" onclick="event.stopPropagation();togglePin('${c.id}')" aria-label="Pin chat">📌</button></span></div><div class="last">${L ? (mine && cfg.ticks ? `<span class="tkl s-${msgState(L)}">${tickHtml(msgState(L))}</span>` : "") + esc(L.body) : "Tap to send a message"}</div></div>${c.unread ? `<span class="ubadge">${c.unread > 9 ? "9+" : c.unread}</span>` : ""}</div>`;
+      return `<div class="card crow${c.unread ? " un" : ""}" onclick="openChat('${c.id}')">${avOn(p)}<div class="mid"><div class="top"><span class="name">${esc(p.name)}</span><span class="tr"><span class="meta">${L ? ago(L.created_at) : ""}</span><button class="pinb${pinned ? " on" : ""}" onclick="event.stopPropagation();togglePin('${c.id}')" aria-label="Pin chat">📌</button></span></div><div class="last">${L ? (mine && cfg.ticks ? `<span class="tkl s-${msgState(L)}">${tickHtml(msgState(L))}</span>` : "") + esc(L.body) : "Tap to send a message"}</div></div><div class="qcalls"><button class="qb grn" onclick="event.stopPropagation();callFromList('${c.id}','audio')" aria-label="Voice call">${ICON_PHONE}</button><button class="qb blu" onclick="event.stopPropagation();callFromList('${c.id}','video')" aria-label="Video call">${ICON_VIDEO}</button></div>${c.unread ? `<span class="ubadge">${c.unread > 9 ? "9+" : c.unread}</span>` : ""}</div>`;
     }).join("");
   } else {
     h += `<div class="empty">No messages yet. Pick a friend below to start chatting.</div>`;
@@ -1189,3 +1189,6 @@ async function pushNotify(to, payload){
     if (!r.ok) console.warn("push " + r.status, t.slice(0, 120));
   } catch (e) { console.warn("push error", e); }
 }
+
+/* list call buttons: set the chat, then reuse the normal call flow */
+function callFromList(id, kind){ if (!me) return; chatId = id; startCall(kind); }
