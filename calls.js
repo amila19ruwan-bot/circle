@@ -243,13 +243,13 @@ function toggleMute(){
   if (!call || !call.stream) return;
   call.muted = !call.muted;
   call.stream.getAudioTracks().forEach(t => t.enabled = !call.muted);
-  const b = document.getElementById("cl-mute"); if (b){ b.classList.toggle("off", call.muted); b.textContent = call.muted ? "🔇" : "🎤"; }
+  const b = document.getElementById("cl-mute"); if (b){ b.classList.toggle("off", call.muted); b.innerHTML = call.muted ? IC.micOff : IC.mic; }
 }
 function toggleCam(){
   if (!call || !call.stream) return;
   call.camOff = !call.camOff;
   call.stream.getVideoTracks().forEach(t => t.enabled = !call.camOff);
-  const b = document.getElementById("cl-cam"); if (b){ b.classList.toggle("off", call.camOff); b.textContent = call.camOff ? "🚫" : "📹"; }
+  const b = document.getElementById("cl-cam"); if (b){ b.classList.toggle("off", call.camOff); b.innerHTML = call.camOff ? IC.camOff : IC.cam; }
 }
 async function flipCam(){
   const c = call; if (!c || c.kind !== "video" || !c.stream) return;
@@ -269,6 +269,29 @@ async function flipCam(){
   } catch (e) { soon("Could not switch camera"); }
 }
 
+
+async function toggleShare(){
+  const c = call; if (!c || c.kind !== "video" || !c.pc) return;
+  const sender = c.pc.getSenders().find(x => x.track && x.track.kind === "video");
+  if (!sender) return;
+  try {
+    if (c.sharing){
+      if (c.camTrack) await sender.replaceTrack(c.camTrack);
+      if (c.shareTrack) c.shareTrack.stop();
+      c.sharing = false; c.shareTrack = null;
+    } else {
+      if (!navigator.mediaDevices || !navigator.mediaDevices.getDisplayMedia) return soon("Screen share is not supported here");
+      const ds = await navigator.mediaDevices.getDisplayMedia({ video: true });
+      const dt = ds.getVideoTracks()[0];
+      c.camTrack = sender.track;
+      await sender.replaceTrack(dt);
+      c.shareTrack = dt; c.sharing = true;
+      dt.onended = () => { if (call === c && c.sharing) toggleShare(); };
+    }
+  } catch (e) { soon("Screen share cancelled"); }
+  const sb = document.getElementById("cl-share"); if (sb) sb.classList.toggle("on", !!c.sharing);
+}
+
 /* ---------- screen ---------- */
 function drawCall(){
   clStyle();
@@ -285,17 +308,30 @@ function drawCall(){
   paintBtns();
   const lv = document.getElementById("cl-lv"); if (lv && c.stream){ lv.srcObject = c.stream; lv.play().catch(() => {}); }
 }
+const IC = {
+  mic: '<svg viewBox="0 0 24 24"><rect x="9" y="3" width="6" height="11" rx="3" fill="currentColor"/><path d="M5 11a7 7 0 0 0 14 0M12 18v3" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg>',
+  micOff: '<svg viewBox="0 0 24 24"><rect x="9" y="3" width="6" height="11" rx="3" fill="currentColor"/><path d="M5 11a7 7 0 0 0 14 0M12 18v3M4 4l16 16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg>',
+  cam: '<svg viewBox="0 0 24 24"><rect x="2.5" y="6" width="13" height="12" rx="3" fill="currentColor"/><path d="M16 10.5l5-3v9l-5-3z" fill="currentColor"/></svg>',
+  camOff: '<svg viewBox="0 0 24 24"><rect x="2.5" y="6" width="13" height="12" rx="3" fill="currentColor"/><path d="M16 10.5l5-3v9l-5-3zM3 3l18 18" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg>',
+  share: '<svg viewBox="0 0 24 24"><rect x="3" y="4" width="18" height="12" rx="2" fill="none" stroke="currentColor" stroke-width="2"/><path d="M12 13V7M9 10l3-3 3 3M8 20h8" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg>',
+  flip: '<svg viewBox="0 0 24 24"><path d="M4 9a8 8 0 0 1 14-3M20 15a8 8 0 0 1-14 3" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"/><path d="M18 3v4h-4M6 21v-4h4" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg>',
+  end: '<svg viewBox="0 0 24 24"><path d="M3 13c4-4 14-4 18 0l-2.5 3-3.5-2v-2c-2-.7-4-.7-6 0v2l-3.5 2L3 13z" fill="currentColor"/></svg>'
+};
 function paintBtns(){
   const c = call, b = document.getElementById("cl-btns"); if (!c || !b) return;
   if (c.state === "incoming"){
     b.innerHTML = `<button class="cl-b red" onclick="endCall('decline')" aria-label="Decline">✖</button><button class="cl-b grn" onclick="acceptCall()" aria-label="Answer">${c.kind === "video" ? "📹" : "📞"}</button>`;
     return;
   }
+  const w = (btn, label) => `<div class="cl-w">${btn}<span>${label}</span></div>`;
   b.innerHTML =
-    `<button id="cl-mute" class="cl-b ${c.muted ? "off" : ""}" onclick="toggleMute()" aria-label="Mute">${c.muted ? "🔇" : "🎤"}</button>` +
-    (c.kind === "video" ? `<button id="cl-cam" class="cl-b ${c.camOff ? "off" : ""}" onclick="toggleCam()" aria-label="Camera">${c.camOff ? "🚫" : "📹"}</button><button class="cl-b" onclick="flipCam()" aria-label="Flip camera">🔄</button>` : "") +
-    `<button class="cl-b red" onclick="hangUp()" aria-label="End call">✖</button>`;
+    w(`<button id="cl-mute" class="cl-b ${c.muted ? "off" : ""}" onclick="toggleMute()" aria-label="Mute">${c.muted ? IC.micOff : IC.mic}</button>`, "Mute") +
+    (c.kind === "video" ? w(`<button id="cl-cam" class="cl-b ${c.camOff ? "off" : ""}" onclick="toggleCam()" aria-label="Video">${c.camOff ? IC.camOff : IC.cam}</button>`, "Video") : "") +
+    (c.kind === "video" ? w(`<button id="cl-share" class="cl-b ${c.sharing ? "on" : ""}" onclick="toggleShare()" aria-label="Screen share">${IC.share}</button>`, "Screen Share") : "") +
+    (c.kind === "video" ? w(`<button class="cl-b" onclick="flipCam()" aria-label="Switch camera">${IC.flip}</button>`, "Switch") : "") +
+    w(`<button class="cl-b red" onclick="hangUp()" aria-label="End call">${IC.end}</button>`, "End");
 }
+
 function setSt(t){
   const el = document.getElementById("cl-st"); if (el) el.textContent = t;
   if (call && call.state === "connecting"){ const b = document.getElementById("cl-btns"); if (b && !document.getElementById("cl-mute")) paintBtns(); const lv = document.getElementById("cl-lv"); if (lv){ lv.classList.remove("hidden"); if (call.stream && lv.srcObject !== call.stream){ lv.srcObject = call.stream; lv.play().catch(() => {}); } } }
