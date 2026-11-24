@@ -101,6 +101,7 @@ const esc = s => String(s == null ? "" : s).replace(/[&<>"']/g, c => ({ "&": "&a
 const when = t => t ? new Date(t).toLocaleString() : "";
 let tab = "users";
 let userSearch = "";
+let loggedIn = false;
 
 function toast(t){
   const el = document.createElement("div");
@@ -118,7 +119,9 @@ async function start(){
   const { data, error } = await sb.rpc("is_admin");
   if (error || data !== true) return showOnly("denied");
   showOnly("panel");
-  showHome();
+  loggedIn = true;
+  try { history.replaceState({ s: "home" }, ""); } catch (e) {}
+  route({ s: "home" });
 }
 
 $("loginForm").addEventListener("submit", async e => {
@@ -157,23 +160,22 @@ async function loadStats(){
 }
 
 /* ---------- tabs ---------- */
-function setTab(t){
-  tab = t; userCtx = null;
-  loadTab();
-}
+function setTab(t){ go({ s: t === "users" ? "users" : "content" }); }
 function loadTab(){
   if (tab === "users") return loadUsers();
   if (tab === "content") return loadContent();
   return showHome();
 }
-function showHome(){
+function showHome(){ go({ s: "home" }); }
+function showHomeView(){
   tab = "home"; userCtx = null;
   setBody(`
     <div class="home">
-      <button class="big" onclick="setTab('users')">👤 Profiles</button>
-      <button class="big ghost" onclick="setTab('content')">🎬 Posts &amp; Videos</button>
+      <button class="big" onclick="showHome2('users')">👤 Profiles</button>
+      <button class="big ghost" onclick="showHome2('content')">🎬 Posts &amp; Videos</button>
     </div>`);
 }
+function showHome2(t){ setTab(t); }
 function setBody(html){ $("tabBody").innerHTML = html; }
 function avatarHtml(name, url){
   return `<div class="av">${url ? `<img src="${esc(url)}" alt="">` : esc((name || "?").trim().charAt(0).toUpperCase())}</div>`;
@@ -313,12 +315,8 @@ function refreshList(){
   if (userCtx) return userCtx.open ? loadUserContent() : loadUserView();
   return loadTab();
 }
-function openUser(id){
-  userCtx = { id, open: false };
-  document.querySelectorAll(".tab").forEach(b => b.classList.remove("on"));
-  loadUserView();
-}
-function closeUser(){ setTab("users"); }
+function openUser(id){ go({ s: "user", id }); }
+function closeUser(){ go({ s: "users" }); }
 async function loadUserView(){
   const id = userCtx.id;
   setBody(`
@@ -337,8 +335,7 @@ async function loadUserView(){
 }
 function showUserContent(){
   if (!userCtx) return;
-  userCtx.open = true;
-  loadUserContent();
+  go({ s: "user", id: userCtx.id, open: true });
 }
 async function loadUserContent(){
   const id = userCtx.id;
@@ -365,6 +362,30 @@ async function loadUserContent(){
     </div>`).join("");
   $("list").innerHTML = (posts + reels) || `<div class="empty">No posts or reels from this user.</div>`;
 }
+
+/* ---------- back button: keep the admin panel open, go to the previous screen ---------- */
+function go(st, push = true){
+  if (push){ try { history.pushState(st, ""); } catch (e) {} }
+  route(st);
+}
+function route(st){
+  st = st || { s: "home" };
+  if (st.s === "users"){ tab = "users"; userCtx = null; return loadUsers(); }
+  if (st.s === "content"){ userCtx = null; return loadContent(); }
+  if (st.s === "user" && st.id){
+    userCtx = { id: st.id, open: !!st.open };
+    loadUserView();
+    if (st.open) loadUserContent();
+    return;
+  }
+  showHomeView();
+}
+window.addEventListener("popstate", e => {
+  if (!loggedIn) return;
+  const st = e.state || { s: "home" };
+  if (st.s === "home"){ try { history.pushState({ s: "home" }, ""); } catch (er) {} }
+  route(st);
+});
 
 start();
 </script>
