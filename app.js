@@ -1178,7 +1178,7 @@ async function pushNotify(to, payload){
   try {
     if (!me || !to) return;
     const { data: { session } } = await sb.auth.getSession();
-    if (!session) return soon("push: not logged in");
+    if (!session) return;
     /* login token goes in its own header; the Authorization header carries only the public key */
     const r = await fetch(PUSH_URL, {
       method: "POST",
@@ -1186,6 +1186,6 @@ async function pushNotify(to, payload){
       body: JSON.stringify({ to, ...payload })
     });
     const t = await r.text();
-    soon("push " + r.status + ": " + t.slice(0, 120));
-  } catch (e) { soon("push error: " + String(e.message || e).slice(0, 120)); }
+    if (!r.ok) console.warn("push " + r.status, t.slice(0, 120));
+  } catch (e) { console.warn("push error", e); }
 }
