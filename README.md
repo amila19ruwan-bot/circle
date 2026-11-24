@@ -1,3 +1,43 @@
+# Circle Admin Panel — v2 (අදියර 1)
+
+## දැන් run කරන්න ඕන දේ (පිළිවෙලට)
+1. Supabase → SQL editor → `migration-admin-v2.sql` paste කරලා **Run** (එක පාරයි, ආයෙත් run කළාට කමක් නෑ).
+2. `admin.html` GitHub එකට replace කරන්න → Vercel deploy වෙනකම් මිනිත්තුවක් ඉඳලා `admin.html?v=6` open කරන්න.
+3. දැනට ඉන්න admins ඔක්කොම **super_admin** වෙනවා. අනිත් අයට role දෙන්න:
+```sql
+update public.admins set role = 'moderator' -- හෝ 'admin'
+where user_id = (select id from auth.users where email = 'EMAIL_HERE');
+```
+
+## Roles (server එකේ check වෙනවා — SQL functions වල)
+- **moderator:** බලන්න, content delete/hide, warning/notice යවන්න.
+- **admin:** + status වෙනස් කිරීම, profile edit, verify, සියලු posts delete.
+- **super_admin:** + account permanently delete.
+- Admin accounts වලට block/ban/delete කරන්න බෑ.
+
+## කරපු වැඩ ✅
+- Dashboard: users, active (7d), online (විනාඩි 2), blocked/banned, suspended, posts, reels, pending/resolved reports.
+- User list: profile pic, නම, username, ID, online/offline, last seen, search (නම/username/ID), filter (status), sort (newest/oldest/last active).
+- User details: email, phone, registered, last login, last seen, status, bio, posts/reels/comments/reports count.
+- Profile edit (නම, username, bio, verified) — reason එක්ක.
+- Block / Unblock / Suspend 1-7-30 දවස් / Restrict / Disable / Ban / Restore / Delete account.
+- Warning සහ notice යවන්න (DB එකේ `admin_notices` table එකට).
+- Delete post/reel/all posts — confirm + reason + log.
+- Admin Activity Log page (search, before/after values).
+- හැම destructive action එකටම reason අනිවාර්යයි.
+
+## ඉතුරු වැඩ ⏳ (ඊළඟ අදියර)
+1. **App එකේ enforcement:** blocked/suspended/banned user ව app එකෙන් login/post කරන්න නොදී නවත්තන්න `app.js` වෙනස් කරන්න ඕන. දැනට status එක DB එකේ වෙනස් වෙනවා, app එක තාම ඒක බලන්නේ නෑ.
+2. **Hidden posts/reels:** `hidden` column එක තියෙනවා, admin_hide function එකත් තියෙනවා, ඒත් app එකේ feed එකෙන් hidden ඒවා filter කරන්න ඕන; admin UI එකේ Hide/Unhide බටන් තාම දාලා නෑ.
+3. **Reports section:** table එක (`reports`) හැදුවා, ඒත් app එකේ "Report" බටන් එකක් නෑ; admin page එකේ reports list/resolve/dismiss UI එකත් ඉතුරුයි.
+4. **Notifications app එකේ පෙන්වීම:** `admin_notices` user ට පෙන්නන්න app එකේ UI එකක් ඕන.
+5. **User activity history:** login history/device info Supabase auth එකෙන් විතරයි (last login). ඉතිරි ඒවා record කරන්නේ නෑ.
+6. Followers/following: app එක පාවිච්චි කරන්නේ friendships, ඒක schema එක බලලා count එකතු කරන්න ඕන.
+7. Profile picture change (admin වෙනුවෙන් upload), selected posts bulk delete, individual comments manage, restore deleted content (දැන් delete permanent).
+8. Prompt boxes වෙනුවට නියම modal forms.
+
+---
+
 # Circle Admin Panel
 
 Admin panel එක: `https://circle-indol-tau.vercel.app/admin.html`

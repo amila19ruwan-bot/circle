@@ -387,6 +387,147 @@ window.addEventListener("popstate", e => {
   route(st);
 });
 
+/* ================= Admin v2 (overrides earlier functions) ================= */
+let myRole = "admin", fStatus = "all", fSort = "new";
+const canStatus = () => myRole !== "moderator";
+const effStatus = p => (p.status === "suspended" && p.suspended_until && new Date(p.suspended_until) < new Date()) ? "active" : (p.status || "active");
+const isOnline = p => p.last_seen && (Date.now() - new Date(p.last_seen)) < 120000;
+const rpc = async (fn, args) => { const { data, error } = await sb.rpc(fn, args); if (error) { toast("Error: " + error.message); throw error; } return data; };
+function reason(t){ const r = prompt(t + "\nReason (required):"); return r && r.trim() ? r.trim() : null; }
+const badge = s => `<span class="meta" style="font-weight:800">${esc(s)}</span>`;
+
+const _start = start;
+start = async function(){
+  const { data: { session } } = await sb.auth.getSession();
+  if (session) { const r = await sb.rpc("admin_role"); if (!r.error && r.data) myRole = r.data; }
+  return _start();
+};
+
+function showHomeView(){
+  tab = "home"; userCtx = null;
+  setBody(`<div class="card"><b>Role:</b> ${esc(myRole)}</div><div id="stats" class="stats"></div>
+    <div class="home" style="margin-top:14px">
+      <button class="big" onclick="go({s:'users'})">👤 Profiles</button>
+      <button class="big ghost" onclick="go({s:'content'})">🎬 Posts &amp; Videos</button>
+      <button class="big ghost" onclick="go({s:'log'})">📜 Admin Activity Log</button></div>`);
+  loadStats();
+}
+loadStats = async function(){
+  const box = $("stats"); box.innerHTML = `<div class="stat"><span>Loading…</span></div>`;
+  try {
+    const d = await rpc("admin_dashboard");
+    box.innerHTML = [["Users", d.users], ["Active (7d)", d.active], ["Online now", d.online], ["Blocked/banned", d.blocked], ["Suspended", d.suspended],
+      ["Posts", d.posts], ["Reels", d.reels], ["Pending reports", d.pending_reports], ["Resolved reports", d.resolved_reports]]
+      .map(([l, n]) => `<div class="stat"><b>${n}</b><span>${l}</span></div>`).join("");
+  } catch (e) { box.innerHTML = `<div class="stat"><span>Run migration-admin-v2.sql first</span></div>`; }
+};
+
+function usersHtml(list){
+  if (!list.length) return `<div class="empty">No users found.</div>`;
+  return list.map(p => `<div class="card user-card" onclick="openUser('${esc(p.id)}')"><div class="row">${avatarHtml(p.name, p.avatar_url)}
+    <div class="grow"><div class="name">${esc(p.name || "(no name)")}${p.is_verified ? " ✔" : ""} <span class="meta">${p.username ? "@" + esc(p.username) : ""}</span></div>
+      <div class="meta">${isOnline(p) ? "🟢 Online" : "⚪ Offline"} · ${esc(effStatus(p))}</div>
+      <div class="meta">Last seen: ${p.last_seen ? esc(when(p.last_seen)) : "never"}</div>
+      <div class="meta">ID: ${esc(p.id)}</div></div><span class="chev">›</span></div></div>`).join("");
+}
+loadUsers = async function(){
+  setBody(`<button class="btn ghost" onclick="showHome()">‹ Home</button>
+    <div class="card search"><input id="q" placeholder="Search name or ID (Enter)" value="${esc(userSearch)}">
+    <div class="row" style="margin-top:8px"><select id="fs">${["all","active","blocked","suspended","banned","restricted","disabled"].map(s => `<option ${s === fStatus ? "selected" : ""}>${s}</option>`).join("")}</select>
+    <select id="so"><option value="new" ${fSort === "new" ? "selected" : ""}>Newest</option><option value="old" ${fSort === "old" ? "selected" : ""}>Oldest</option><option value="seen" ${fSort === "seen" ? "selected" : ""}>Last active</option></select></div></div>
+    <div id="list"><div class="empty">Loading…</div></div>`);
+  const go2 = () => { userSearch = $("q").value.trim(); fStatus = $("fs").value; fSort = $("so").value; loadUsers(); };
+  $("q").addEventListener("keydown", e => { if (e.key === "Enter") go2(); });
+  $("fs").onchange = go2; $("so").onchange = go2;
+  let q = sb.from("profiles").select("*").limit(100);
+  if (userSearch) q = /^[0-9a-f-]{32,36}$/i.test(userSearch) ? q.eq("id", userSearch) : q.or(`name.ilike.%${userSearch.replace(/[,()]/g, "")}%,username.ilike.%${userSearch.replace(/[,()]/g, "")}%`);
+  if (fStatus !== "all") q = q.eq("status", fStatus);
+  q = fSort === "seen" ? q.order("last_seen", { ascending: false, nullsFirst: false }) : q.order("created_at", { ascending: fSort === "old" });
+  const { data, error } = await q;
+  if ($("list")) $("list").innerHTML = error ? `<div class="msg">${esc(error.message)} (run migration-admin-v2.sql)</div>` : usersHtml(data || []);
+};
+
+loadUserView = async function(){
+  const id = userCtx.id;
+  setBody(`<button class="btn ghost" onclick="closeUser()">‹ Back to users</button><div class="card" id="ucard">Loading…</div><div id="list"></div>`);
+  const [pr, info] = await Promise.all([sb.from("profiles").select("*").eq("id", id).maybeSingle(), sb.rpc("admin_user_info", { p_user: id })]);
+  const p = pr.data || {}, i = info.data || {};
+  if (!$("ucard") || !userCtx || userCtx.id !== id) return;
+  const act = (label, st, d, cls) => canStatus() ? `<button class="btn sm ${cls || "ghost"}" onclick="setStatus('${esc(id)}','${st}',${d || 0})">${label}</button>` : "";
+  $("ucard").innerHTML = `<div class="row">${avatarHtml(p.name, p.avatar_url)}<div class="grow"><div class="name">${esc(p.name || "(no name)")}${p.is_verified ? " ✔" : ""}</div>
+    <div class="meta">${p.username ? "@" + esc(p.username) : "no username"}</div></div></div>
+    <div class="meta" style="margin-top:8px">ID: ${esc(id)}<br>Email: ${esc(i.email || "—")} · Phone: ${esc(i.phone || "—")}<br>
+    ${isOnline(p) ? "🟢 Online" : "⚪ Offline"} · Status: <b>${esc(effStatus(p))}</b>${p.suspended_until ? " until " + esc(when(p.suspended_until)) : ""}${p.status_reason ? "<br>Reason: " + esc(p.status_reason) : ""}<br>
+    Registered: ${esc(when(i.registered || p.created_at))}<br>Last login: ${esc(when(i.last_login) || "—")}<br>Last seen: ${esc(when(p.last_seen) || "never")}</div>
+    ${p.bio ? `<div class="body">${esc(p.bio)}</div>` : ""}
+    <div class="stats" style="margin-top:10px">${[["Posts", i.posts], ["Reels", i.reels], ["Comments", i.comments], ["Reports", i.reports]].map(([l, n]) => `<div class="stat"><b>${n == null ? "—" : n}</b><span>${l}</span></div>`).join("")}</div>
+    <div class="meta" style="margin-top:6px">Followers/following: not tracked (app uses friendships)</div>
+    <div class="row" style="margin-top:12px;flex-wrap:wrap">
+      ${canStatus() ? `<button class="btn sm" onclick="editUser('${esc(id)}')">Edit profile</button>` : ""}
+      ${act("Block", "blocked")}${act("Unblock / Restore", "active")}${act("Suspend 1d", "suspended", 1)}${act("Suspend 7d", "suspended", 7)}${act("Suspend 30d", "suspended", 30)}
+      ${act("Restrict", "restricted")}${act("Disable", "disabled")}${act("Ban", "banned", 0, "del")}
+      <button class="btn sm ghost" onclick="notifyUser('${esc(id)}','warning')">Send warning</button>
+      <button class="btn sm ghost" onclick="notifyUser('${esc(id)}','notice')">Send notice</button>
+      <button class="btn sm ghost" onclick="showUserContent()">Posts &amp; reels</button>
+      ${canStatus() ? `<button class="btn sm del" onclick="deleteUserPosts('${esc(id)}')">Delete all posts</button>` : ""}
+      ${myRole === "super_admin" ? `<button class="btn sm del" onclick="deleteAccount('${esc(id)}')">Delete account</button>` : ""}</div>
+    ${(i.notices || []).length ? `<div class="meta" style="margin-top:10px"><b>Recent notices sent</b><br>${i.notices.map(n => esc(when(n.created_at)) + " · " + esc(n.kind) + ": " + esc(n.message)).join("<br>")}</div>` : ""}`;
+  window._p = p;
+};
+async function setStatus(id, st, days){
+  const r = reason(`Set status to "${st}"${days ? " for " + days + " day(s)" : ""}`); if (!r) return;
+  if (["banned", "disabled", "blocked"].includes(st) && !confirm("Confirm: " + st + "?")) return;
+  try { await rpc("admin_set_status", { p_user: id, p_status: st, p_days: days, p_reason: r }); toast("Updated"); loadUserView(); } catch (e) {}
+}
+async function editUser(id){
+  const p = window._p || {};
+  const name = prompt("Full name:", p.name || ""); if (name === null) return;
+  const un = prompt("Username (blank = none):", p.username || ""); if (un === null) return;
+  const bio = prompt("Bio:", p.bio || ""); if (bio === null) return;
+  const ver = confirm("Verified badge? OK = verified, Cancel = not verified");
+  const r = reason("Edit profile"); if (!r) return;
+  try { await rpc("admin_edit_profile", { p_user: id, p_name: name, p_username: un, p_bio: bio, p_verified: ver, p_reason: r }); toast("Saved"); loadUserView(); } catch (e) {}
+}
+async function notifyUser(id, kind){
+  const m = prompt(kind === "warning" ? "Warning message:" : "Notice message:"); if (!m || !m.trim()) return;
+  try { await rpc("admin_notify", { p_user: id, p_kind: kind, p_message: m.trim() }); toast("Sent"); loadUserView(); } catch (e) {}
+}
+async function deleteAccount(id){
+  if (!confirm("PERMANENTLY delete this account and all its data?")) return;
+  const r = reason("Delete account"); if (!r) return;
+  try { await rpc("admin_delete_user", { p_user: id, p_reason: r }); toast("Account deleted"); closeUser(); } catch (e) {}
+}
+deleteUserPosts = async function(id){
+  if (!confirm("Delete ALL posts by this user? This cannot be undone.")) return;
+  const r = reason("Delete all posts"); if (!r) return;
+  try { const n = await rpc("admin_delete_user_posts", { p_user: id, p_reason: r }); toast(`Deleted ${n} post(s)`); refreshList(); } catch (e) {}
+};
+async function delContent(table, id){
+  if (!confirm("Delete this? This cannot be undone.")) return;
+  const r = reason("Delete content"); if (!r) return;
+  try { await rpc("admin_delete_content", { p_table: table, p_id: id, p_reason: r }); toast("Deleted"); refreshList(); } catch (e) {}
+}
+deletePost = id => delContent("posts", id);
+deleteReel = id => delContent("reels", id);
+
+async function loadLog(){
+  tab = "log";
+  setBody(`<button class="btn ghost" onclick="showHome()">‹ Home</button><div class="card search"><input id="lq" placeholder="Filter by action or user ID (Enter)"></div><div id="list"><div class="empty">Loading…</div></div>`);
+  const run = async () => {
+    const t = $("lq").value.trim().replace(/[,()]/g, "");
+    let q = sb.from("admin_logs").select("*").order("created_at", { ascending: false }).limit(100);
+    if (t) q = /^[0-9a-f-]{36}$/i.test(t) ? q.or(`target_user.eq.${t},admin_id.eq.${t}`) : q.ilike("action", "%" + t + "%");
+    const { data, error } = await q;
+    $("list").innerHTML = error ? `<div class="msg">${esc(error.message)}</div>` : !(data || []).length ? `<div class="empty">No actions yet.</div>` :
+      data.map(l => `<div class="card"><div class="name">${esc(l.action)}</div><div class="meta">${esc(when(l.created_at))}<br>Admin: ${esc(l.admin_id)}<br>Target: ${esc(l.target_user || "—")}<br>Reason: ${esc(l.reason || "—")}</div>
+      ${l.old_value || l.new_value ? `<div class="meta">Before: ${esc(JSON.stringify(l.old_value))}<br>After: ${esc(JSON.stringify(l.new_value))}</div>` : ""}</div>`).join("");
+  };
+  $("lq").addEventListener("keydown", e => { if (e.key === "Enter") run(); });
+  run();
+}
+const _route = route;
+route = function(st){ st = st || { s: "home" }; if (st.s === "log") { userCtx = null; return loadLog(); } return _route(st); };
+
 start();
 </script>
 </body>
