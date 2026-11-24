@@ -97,3 +97,6 @@ body {
 
 /* no pull-to-refresh while a call is running: pulling down reloads the page and would drop the call */
 html.in-call, html.in-call body, html.in-call #main { overscroll-behavior-y: none; }
+
+/* video quality button (text label) */
+#call-ui .cl-b.vq { font-size: 15px; font-weight: 800; color: #fff; }

@@ -985,6 +985,7 @@ function drawSettings(){
   m.innerHTML = `<button class="back" onclick="goBack()">‹ Back</button><div class="card"><div class="ctitle">Sound volume</div>${chips("vol", VOLS, "in")}</div><div class="card"><div class="ctitle">Incoming message</div><div class="meta">Tone (tap to hear it)</div>${chips("inTone", TONES, "in")}<div class="meta">Vibration</div>${chips("inVib", VIBS, "in")}</div>
   <div class="card"><div class="ctitle">When I send</div><div class="meta">Tone</div>${chips("outTone", TONES, "out")}<div class="meta">Vibration</div>${chips("outVib", VIBS, "out")}</div>
   <div class="card"><div class="ctitle">Message status</div>${swRow("ticks", "Show Sent / Delivered / Seen", "Ticks and the status text under my messages")}${swRow("rr", "Let others see when I read", "If off, people see Delivered but never Seen")}</div>
+  <div class="card"><div class="ctitle">Video call quality</div><div class="meta">Low uses less data, High looks sharper</div><div>${typeof vqChips === "function" ? vqChips() : ""}</div></div>
   <div class="card"><div class="ctitle">Privacy</div>${swRow("online", "Show my Online status", "If off, nobody sees you as Online")}</div>
   <div class="card"><div class="ctitle">Notifications</div><div class="meta" id="push-st">Checking…</div><button class="btn" style="width:100%;margin-top:10px" onclick="pushOn()">🔔 Turn on notifications</button></div>
   ${installEv ? `<div class="card"><div class="ctitle">Install app</div><button class="btn" style="width:100%" onclick="doInstall()">📲 Install Circle</button></div>` : ""}

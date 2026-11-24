@@ -318,6 +318,41 @@ const CALL_IC = {
   msg: '<svg viewBox="0 0 24 24"><path d="M4 5h16a1 1 0 0 1 1 1v10a1 1 0 0 1-1 1H9l-5 4v-4H4a1 1 0 0 1-1-1V6a1 1 0 0 1 1-1z" fill="currentColor"/></svg>',
   end: '<svg viewBox="0 0 24 24"><path d="M3 13c4-4 14-4 18 0l-2.5 3-3.5-2v-2c-2-.7-4-.7-6 0v2l-3.5 2L3 13z" fill="currentColor"/></svg>'
 };
+/* ---------- video quality: Low / Medium / High (saved per viewer) ---------- */
+const VQ = { low: { bps: 120000, scale: 4, fps: 10, label: "Low" }, medium: { bps: 900000, scale: 1, label: "Med" }, high: { bps: 2500000, scale: 1, label: "High" } };
+let vq = "medium";
+try { vq = localStorage.getItem("cl-vq") || "medium"; if (!VQ[vq]) vq = "medium"; } catch (e) {}
+function applyVq(){
+  if (!call || !call.pc || call.vqSet === vq) return;
+  let done = false;
+  call.pc.getSenders().forEach(s => {
+    if (!s.track || s.track.kind !== "video") return;
+    const p = s.getParameters();
+    if (!p.encodings || !p.encodings.length) p.encodings = [{}];
+    p.encodings[0].maxBitrate = VQ[vq].bps;
+    p.encodings[0].scaleResolutionDownBy = VQ[vq].scale;
+    p.encodings[0].maxFramerate = VQ[vq].fps || 30;
+    s.setParameters(p).then(() => { done = true; }).catch(() => {});
+  });
+  call.vqSet = vq;
+}
+function setVq(k){
+  if (!VQ[k]) return;
+  vq = k;
+  try { localStorage.setItem("cl-vq", vq); } catch (e) {}
+  applyVq(); paintBtns();
+  if (typeof cur !== "undefined" && cur && cur.t === "settings" && typeof drawSettings === "function") drawSettings();
+}
+function vqChips(){
+  const names = { low: "Low", medium: "Medium", high: "High" };
+  return ["low", "medium", "high"].map(k => `<button class="btn${k === vq ? "" : " alt"}" style="margin:4px 4px 0 0" onclick="setVq('${k}')">${names[k]}</button>`).join("");
+}
+function cycleVq(){
+  const order = ["low", "medium", "high"];
+  vq = order[(order.indexOf(vq) + 1) % order.length];
+  try { localStorage.setItem("cl-vq", vq); } catch (e) {}
+  applyVq(); paintBtns();
+}
 function paintBtns(){
   const c = call, b = document.getElementById("cl-btns"); if (!c || !b) return;
   const w = (btn, label) => `<div class="cl-w">${btn}<span>${label}</span></div>`;
@@ -333,6 +368,7 @@ function paintBtns(){
     (c.kind === "video" ? w(`<button id="cl-cam" class="cl-b ${c.camOff ? "off" : ""}" onclick="toggleCam()" aria-label="Video">${c.camOff ? CALL_IC.camOff : CALL_IC.cam}</button>`, "Video") : "") +
     (c.kind === "video" && !CALL_IS_PHONE ? w(`<button id="cl-share" class="cl-b ${c.sharing ? "on" : ""}" onclick="toggleShare()" aria-label="Screen share">${CALL_IC.share}</button>`, "Screen Share") : "") +
     (c.kind === "video" ? w(`<button class="cl-b" onclick="flipCam()" aria-label="Switch camera">${CALL_IC.flip}</button>`, "Switch") : "") +
+    (c.kind === "video" ? w(`<button class="cl-b vq" onclick="cycleVq()" aria-label="Video quality">${VQ[vq].label}</button>`, "Quality") : "") +
     w(`<button class="cl-b red" onclick="hangUp()" aria-label="End call">${CALL_IC.end}</button>`, "End");
 }
 
@@ -429,6 +465,7 @@ setInterval(() => {
     call.guarded = true;
     history.pushState(Object.assign({}, history.state, { callguard: true }), "");
   }
+  applyVq();
   const m = document.getElementById("call-mini");
   if (m){ const st = document.getElementById("cl-st"); m.querySelector(".cm-st").textContent = st ? st.textContent : ""; }
 }, 1000);
