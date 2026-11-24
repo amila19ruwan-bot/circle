@@ -45,6 +45,8 @@
   .search { margin-bottom: 8px; }
   .msg { min-height: 20px; color: #B42318; font-size: 14px; margin-top: 8px; }
   .toast { position: fixed; left: 50%; bottom: 24px; transform: translateX(-50%); background: var(--ink); color: #fff; padding: 10px 16px; border-radius: 999px; font-size: 14px; z-index: 50; }
+  .user-card { cursor: pointer; }
+  .chev { font-size: 30px; color: var(--blue2); padding-right: 4px; }
   .empty { color: var(--muted); text-align: center; padding: 20px 0; }
 </style>
 </head>
@@ -162,7 +164,7 @@ async function loadStats(){
 
 /* ---------- tabs ---------- */
 function setTab(t){
-  tab = t;
+  tab = t; userCtx = null;
   document.querySelectorAll(".tab").forEach(b => b.classList.toggle("on", b.dataset.tab === t));
   loadTab();
 }
@@ -180,7 +182,7 @@ function avatarHtml(name, url){
 function usersHtml(list){
   if (!list.length) return `<div class="empty">No users found.</div>`;
   return list.map(p => `
-    <div class="card">
+    <div class="card user-card" onclick="openUser('${esc(p.id)}')">
       <div class="row">
         ${avatarHtml(p.name, p.avatar_url)}
         <div class="grow">
@@ -188,11 +190,9 @@ function usersHtml(list){
           <div class="meta">Last seen: ${p.last_seen ? esc(when(p.last_seen)) : "never"}</div>
           <div class="meta">ID: ${esc(p.id)}</div>
         </div>
+        <span class="chev">›</span>
       </div>
       ${p.bio ? `<div class="body">${esc(p.bio)}</div>` : ""}
-      <div class="row" style="margin-top:10px">
-        <button class="btn sm del" onclick="deleteUserPosts('${esc(p.id)}')">Delete all their posts</button>
-      </div>
     </div>`).join("");
 }
 async function loadUsers(){
@@ -210,7 +210,7 @@ async function deleteUserPosts(id){
   const { data, error } = await sb.from("posts").delete().eq("user_id", id).select("id");
   if (error) return toast("Error: " + error.message);
   toast(`Deleted ${data ? data.length : 0} post(s)`);
-  loadStats();
+  refreshList(); loadStats();
 }
 
 /* ---------- posts ---------- */
@@ -239,7 +239,7 @@ async function deletePost(id){
   if (error) return toast("Error: " + error.message);
   if (!data || !data.length) return toast("Not deleted (no permission)");
   toast("Post deleted");
-  loadPosts(); loadStats();
+  refreshList(); loadStats();
 }
 
 /* ---------- reels ---------- */
@@ -268,7 +268,66 @@ async function deleteReel(id){
   if (error) return toast("Error: " + error.message);
   if (!data || !data.length) return toast("Not deleted (no permission)");
   toast("Reel deleted");
-  loadReels(); loadStats();
+  refreshList(); loadStats();
+}
+
+/* ---------- one user: two buttons (posts & reels, delete all) ---------- */
+let userCtx = null;
+function refreshList(){
+  if (userCtx) return userCtx.open ? loadUserContent() : loadUserView();
+  return loadTab();
+}
+function openUser(id){
+  userCtx = { id, open: false };
+  document.querySelectorAll(".tab").forEach(b => b.classList.remove("on"));
+  loadUserView();
+}
+function closeUser(){ setTab("users"); }
+async function loadUserView(){
+  const id = userCtx.id;
+  setBody(`
+    <button class="btn ghost" onclick="closeUser()">‹ Back to users</button>
+    <div class="card">
+      <div class="name" id="uname">Loading…</div>
+      <div class="meta">ID: ${esc(id)}</div>
+      <div class="row" style="margin-top:12px;flex-wrap:wrap">
+        <button class="btn sm ghost" onclick="showUserContent()">Posts &amp; reels</button>
+        <button class="btn sm del" onclick="deleteUserPosts('${esc(id)}')">Delete all their posts</button>
+      </div>
+    </div>
+    <div id="list"></div>`);
+  const { data } = await sb.from("profiles").select("name").eq("id", id).maybeSingle();
+  if (userCtx && userCtx.id === id && $("uname")) $("uname").textContent = (data && data.name) || "(no name)";
+}
+function showUserContent(){
+  if (!userCtx) return;
+  userCtx.open = true;
+  loadUserContent();
+}
+async function loadUserContent(){
+  const id = userCtx.id;
+  if ($("list")) $("list").innerHTML = `<div class="empty">Loading…</div>`;
+  const [pr, rr] = await Promise.all([
+    sb.from("posts").select("id,body,image_url,created_at,profiles!user_id(name,avatar_url)").eq("user_id", id).order("created_at", { ascending: false }).limit(50),
+    sb.from("reels").select("id,caption,video_url,created_at,profiles!user_id(name,avatar_url)").eq("user_id", id).order("created_at", { ascending: false }).limit(30)
+  ]);
+  if (!userCtx || userCtx.id !== id || !$("list")) return;
+  if (pr.error || rr.error) { $("list").innerHTML = `<div class="msg">${esc((pr.error || rr.error).message)}</div>`; return; }
+  const posts = (pr.data || []).map(p => `
+    <div class="card">
+      <div class="meta">Post · ${esc(when(p.created_at))}</div>
+      ${p.body ? `<div class="body">${esc(p.body)}</div>` : ""}
+      ${p.image_url ? `<img class="thumb" src="${esc(p.image_url)}" alt="">` : ""}
+      <div class="row" style="margin-top:10px"><button class="btn sm del" onclick="deletePost('${esc(p.id)}')">Delete post</button></div>
+    </div>`).join("");
+  const reels = (rr.data || []).map(r => `
+    <div class="card">
+      <div class="meta">Reel · ${esc(when(r.created_at))}</div>
+      ${r.caption ? `<div class="body">${esc(r.caption)}</div>` : ""}
+      ${r.video_url ? `<video class="thumb" src="${esc(r.video_url)}" controls preload="metadata" playsinline></video>` : ""}
+      <div class="row" style="margin-top:10px"><button class="btn sm del" onclick="deleteReel('${esc(r.id)}')">Delete reel</button></div>
+    </div>`).join("");
+  $("list").innerHTML = (posts + reels) || `<div class="empty">No posts or reels from this user.</div>`;
 }
 
 start();
