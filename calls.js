@@ -341,11 +341,12 @@ function setVq(k){
   vq = k;
   try { localStorage.setItem("cl-vq", vq); } catch (e) {}
   applyVq(); paintBtns();
+  soon("Video quality: " + k);
   if (typeof cur !== "undefined" && cur && cur.t === "settings" && typeof drawSettings === "function") drawSettings();
 }
 function vqChips(){
   const names = { low: "Low", medium: "Medium", high: "High" };
-  return ["low", "medium", "high"].map(k => `<button class="btn${k === vq ? "" : " alt"}" style="margin:4px 4px 0 0" onclick="setVq('${k}')">${names[k]}</button>`).join("");
+  return ["low", "medium", "high"].map(k => `<button class="btn ${k === vq ? "vqs" : "vqb"}" style="margin:4px 4px 0 0" onclick="setVq('${k}')">${k === vq ? "✓ " : ""}${names[k]}</button>`).join("");
 }
 function cycleVq(){
   const order = ["low", "medium", "high"];

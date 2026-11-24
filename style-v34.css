@@ -100,3 +100,7 @@ html.in-call, html.in-call body, html.in-call #main { overscroll-behavior-y: non
 
 /* video quality button (text label) */
 #call-ui .cl-b.vq { font-size: 15px; font-weight: 800; color: #fff; }
+
+/* video quality chooser: selected = solid blue, others = white outline */
+.card .btn.vqb { background: #fff !important; color: var(--cw-blue) !important; border: 2px solid var(--cw-blue-2) !important; box-shadow: none !important; }
+.card .btn.vqs { background: linear-gradient(135deg, var(--cw-green), var(--cw-green-2)) !important; box-shadow: 0 6px 14px rgba(22, 163, 74, 0.35) !important; }
