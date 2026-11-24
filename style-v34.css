@@ -90,3 +90,7 @@ body {
 /* floating window button (video calls) */
 #call-ui .cl-pipb { position: absolute; top: calc(env(safe-area-inset-top, 0px) + 14px); left: 14px; z-index: 4; width: 44px; height: 44px; border-radius: 50%; border: 1px solid rgba(255, 255, 255, 0.35); background: rgba(20, 40, 120, 0.55); color: #fff; display: grid; place-items: center; padding: 0; }
 #call-ui .cl-pipb svg { width: 22px; height: 22px; }
+
+/* call page: nicer background for voice calls (video calls keep the video) */
+#call-ui:not(.cl-vid) { background: linear-gradient(160deg, #1e3a8a 0%, #4338ca 55%, #7c3aed 100%) !important; }
+#call-ui .cl-name { letter-spacing: 0.2px; }

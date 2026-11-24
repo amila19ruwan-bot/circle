@@ -397,7 +397,7 @@ function callMinimize(){
     m.id = "call-mini";
     m.innerHTML = `<div class="cm-info"><div class="cm-name"></div><div class="cm-st"></div></div><button class="cm-end" aria-label="End call">${CALL_IC.end}</button>`;
     m.addEventListener("click", e => {
-      if (e.target.closest && e.target.closest(".cm-end")) { hangUp(); return; }
+      if (e.target.closest && e.target.closest(".cm-end")) { if (call && call.state === "incoming") endCall("decline"); else hangUp(); return; }
       callExpand();
     });
     document.body.appendChild(m);
@@ -409,14 +409,21 @@ function callExpand(){
   callMini = false;
   const m = document.getElementById("call-mini"); if (m) m.remove();
 }
+/* back order while a call is in the top bar: 1st back = top bar, 2nd back = Messages list, 3rd back = home feed */
+let backStage = 0;
 window.addEventListener("popstate", () => {
-  if (!call || call.state === "incoming") return;
-  callMinimize();
-  history.pushState(Object.assign({}, history.state, { callguard: true }), "");
+  if (!call) return;
+  if (!callMini){ backStage = 0; callMinimize(); return; } /* first back: call becomes a top bar */
+  backStage++;
+  if (backStage === 1){
+    if (cur && cur.t !== "inbox") navTo({ t: "inbox" }, true); /* 2nd back: Messages list */
+    return;
+  }
+  if (cur && cur.t !== "home") navTo({ t: "home" }, false); /* 3rd back: home feed */
 });
 setInterval(() => {
   if (!call){ if (document.getElementById("call-mini")) callExpand(); return; }
-  if (call.state !== "incoming" && !call.guarded){
+  if (!call.guarded){
     call.guarded = true;
     history.pushState(Object.assign({}, history.state, { callguard: true }), "");
   }

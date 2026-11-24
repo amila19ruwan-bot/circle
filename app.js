@@ -866,7 +866,7 @@ async function renderInbox(){
   }
   const fl = fids.map(i => ppl[i]).filter(Boolean);
   if (fl.length){
-    h += `<h2 class="h2" id="start-chat">Start a chat</h2>` + fl.map(p => `<div class="card crow" onclick="openChat('${p.id}')">${avOn(p)}<div class="mid"><div class="name">${esc(p.name)}</div><div class="meta">Tap to send a message</div></div></div>`).join("");
+    h += `<h2 class="h2" id="start-chat">Start a chat</h2>` + fl.map(p => `<div class="card crow" onclick="openChat('${p.id}')">${avOn(p)}<div class="mid"><div class="name">${esc(p.name)}</div><div class="meta">Tap to send a message</div></div>${qcalls(p.id)}</div>`).join("");
   } else if (!conv.size){
     h += `<div class="empty">Add some friends first, then you can message them.</div>`;
   }
@@ -1192,3 +1192,8 @@ async function pushNotify(to, payload){
 
 /* list call buttons: set the chat, then reuse the normal call flow */
 function callFromList(id, kind){ if (!me) return; chatId = id; startCall(kind); }
+
+/* green phone + blue video buttons, used on every chat row */
+function qcalls(id){
+  return `<div class="qcalls"><button class="qb grn" onclick="event.stopPropagation();callFromList('${id}','audio')" aria-label="Voice call">${ICON_PHONE}</button><button class="qb blu" onclick="event.stopPropagation();callFromList('${id}','video')" aria-label="Video call">${ICON_VIDEO}</button></div>`;
+}
