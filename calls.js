@@ -423,3 +423,20 @@ setInterval(() => {
   const m = document.getElementById("call-mini");
   if (m){ const st = document.getElementById("cl-st"); m.querySelector(".cm-st").textContent = st ? st.textContent : ""; }
 }, 1000);
+
+/* ---------- video call: floating picture-in-picture window over other apps ---------- */
+function callPip(){
+  const v = document.getElementById("cl-rv");
+  if (!call || call.kind !== "video" || !v || !document.pictureInPictureEnabled) return soon("Floating window is not supported here");
+  if (document.pictureInPictureElement) return document.exitPictureInPicture().catch(() => {});
+  v.play().catch(() => {});
+  v.requestPictureInPicture().catch(() => soon("Could not open the floating window"));
+}
+document.addEventListener("visibilitychange", () => {
+  if (document.hidden && call && call.kind === "video" && call.state === "connected") callPip();
+});
+/* let Chrome open the floating window on its own when the user leaves the app (no button) */
+setInterval(() => {
+  const v = document.getElementById("cl-rv");
+  if (v && call && call.kind === "video" && "autoPictureInPicture" in v) v.autoPictureInPicture = true;
+}, 1000);
