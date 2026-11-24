@@ -133,12 +133,29 @@ async function setReelReaction(id, key){
 }
 
 /* ---------- auto-play setting + menu ---------- */
+let reelMenuId = null;
+function currentReelId(){
+  const box = $("reels"); if (!box) return null;
+  let best = null, bd = Infinity;
+  box.querySelectorAll(".rl").forEach(s => { const d = Math.abs(s.offsetTop - box.scrollTop); if (d < bd){ bd = d; best = s; } });
+  return best ? best.dataset.id : null;
+}
+function reelReportRow(){
+  const r = reelMenuId && [...(typeof reelList !== "undefined" ? reelList : []), ...(typeof homeReels !== "undefined" ? homeReels : [])].find(x => String(x.id) === String(reelMenuId));
+  if (!r || r.user_id === me.id) return "";
+  return `<button class="rlm-row" style="color:#D62839" onclick="reportReelFromMenu()"><span>🚩 Report reel</span></button>`;
+}
+function reportReelFromMenu(){
+  const r = [...reelList, ...homeReels].find(x => String(x.id) === String(reelMenuId)); if (!r) return;
+  closeReelMenu(); reportIt("reel", String(r.id), r.user_id);
+}
 function reelMenuHtml(){
   return `<div class="rls-bg" onclick="closeReelMenu()"></div><div class="rlm"><div class="rls-h"><b>Reel settings</b><button onclick="closeReelMenu()" aria-label="Close">✕</button></div>
-    <button class="rlm-row" onclick="toggleReelAuto()"><span>Auto-play videos<small>${reelAuto ? "On" : "Off"}: videos ${reelAuto ? "start playing by themselves" : "play only when you tap them"}</small></span><i class="sw ${reelAuto ? "on" : ""}"></i></button></div>`;
+    <button class="rlm-row" onclick="toggleReelAuto()"><span>Auto-play videos<small>${reelAuto ? "On" : "Off"}: videos ${reelAuto ? "start playing by themselves" : "play only when you tap them"}</small></span><i class="sw ${reelAuto ? "on" : ""}"></i></button>${reelReportRow()}</div>`;
 }
-function openReelMenu(){
+function openReelMenu(id){
   closeReelMenu();
+  reelMenuId = id != null ? id : currentReelId();
   const d = document.createElement("div"); d.id = "rl-menu"; d.innerHTML = reelMenuHtml();
   document.body.appendChild(d);
 }
@@ -208,7 +225,7 @@ function reelHtml(r){
       ${rlLikeBtn(r)}
       <button class="rl-b" onclick="openReelCm(${r.id})" aria-label="Comments">${IC_CMT}<span id="rl-cn-${r.id}">${cm}</span></button>
       <button class="rl-b" onclick="shareReel(${r.id})" aria-label="Share">${IC_SHR}<span>Share</span></button>
-      ${r.user_id === me.id ? `<button class="rl-b" onclick="deleteReel(${r.id})" aria-label="Delete">${IC_DEL}<span>Delete</span></button>` : `<button class="rl-b" onclick="reportIt('reel','${r.id}','${r.user_id}')" aria-label="Report"><span style="font-size:22px">🚩</span><span>Report</span></button>`}
+      ${r.user_id === me.id ? `<button class="rl-b" onclick="deleteReel(${r.id})" aria-label="Delete">${IC_DEL}<span>Delete</span></button>` : ""}
     </div>
     <div class="rl-info">
       <div class="rl-who" onclick="openProfile('${r.user_id}')">${avatar(n, false, av)}<b>${esc(n)}</b><small>${ago(r.created_at)}</small></div>
@@ -418,7 +435,7 @@ function openReelFull(id){ reelStart = id; navTo({ t: "reels" }); }
 function homeReelHtml(r){
   const n = r.profiles ? r.profiles.name : "Someone", av = r.profiles ? r.profiles.avatar_url : null;
   const cm = (r.reel_comments || []).length;
-  return `<div class="card hr-card" id="hr-${r.id}"><div class="row"><div class="ring${r.user_id === me.id ? " me" : ""}">${avatar(n, false, av, r.user_id)}</div><div style="flex:1;min-width:0"><div class="name lnk" onclick="openProfile('${r.user_id}')">${esc(n)}${VERIFIED.includes(String(n || "").toLowerCase()) ? ICON_VERIFIED : ""}</div><div class="meta">${ago(r.created_at)} · posted a reel</div></div><button class="hr-menu" onclick="openReelMenu()" aria-label="Reel settings">•••</button></div>
+  return `<div class="card hr-card" id="hr-${r.id}"><div class="row"><div class="ring${r.user_id === me.id ? " me" : ""}">${avatar(n, false, av, r.user_id)}</div><div style="flex:1;min-width:0"><div class="name lnk" onclick="openProfile('${r.user_id}')">${esc(n)}${VERIFIED.includes(String(n || "").toLowerCase()) ? ICON_VERIFIED : ""}</div><div class="meta">${ago(r.created_at)} · posted a reel</div></div><button class="hr-menu" onclick="openReelMenu(${r.id})" aria-label="Reel settings">•••</button></div>
     ${r.caption ? `<p class="body">${esc(r.caption)}</p>` : ""}
     <div class="hr-w paused"><video class="hr-v" src="${esc(r.video_url)}#t=0.1" loop playsinline muted preload="metadata" onclick="openReelFull(${r.id})"></video>
       <div class="hr-pl">${IC_PLAY}</div>

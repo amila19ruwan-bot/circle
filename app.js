@@ -273,7 +273,7 @@ function postHtml(p){
   const name = p.profiles && p.profiles.name, pav = p.profiles && p.profiles.avatar_url;
   const mineL = p.likes.find(l => l.user_id === me.id), liked = !!mineL, mk = mineL ? rkey(mineL) : "like", n = p.likes.length;
   const count = cmts[p.id] ? cmts[p.id].length : p.comments.length;
-  let h = `<div class="card" id="post-${p.id}"><div class="row"><div class="ring${p.user_id === me.id ? " me" : ""}">${avatar(name, false, pav, p.user_id)}</div><div style="flex:1;min-width:0"><div class="name lnk" onclick="openProfile('${p.user_id}')">${esc(name)}${VERIFIED.includes(String(name || "").toLowerCase()) ? ICON_VERIFIED : ""}</div><div class="meta">${ago(p.created_at)} · ${ICON_GLOBE}</div></div>${p.user_id === me.id ? `<button class="del" onclick="delPost(${p.id})" aria-label="Delete post" style="font-size:22px;letter-spacing:1px;line-height:1">•••</button>` : ""}</div>`;
+  let h = `<div class="card" id="post-${p.id}"><div class="row"><div class="ring${p.user_id === me.id ? " me" : ""}">${avatar(name, false, pav, p.user_id)}</div><div style="flex:1;min-width:0"><div class="name lnk" onclick="openProfile('${p.user_id}')">${esc(name)}${VERIFIED.includes(String(name || "").toLowerCase()) ? ICON_VERIFIED : ""}</div><div class="meta">${ago(p.created_at)} · ${ICON_GLOBE}</div></div><button class="del" onclick="postMenu(${p.id})" aria-label="More options" style="font-size:22px;letter-spacing:1px;line-height:1">•••</button></div>`;
   if (p.body) h += `<p class="body">${esc(p.body)}</p>`;
   if (p.image_url) h += `<img class="post-img" src="${esc(p.image_url)}" alt="Photo" loading="lazy" onclick="openPhoto(this.src)">`;
   if (n || count) h += `<div class="react"><span>${n ? `${topRx(p.likes)}${n}` : ""}</span><span class="lnk" onclick="toggleCm(${p.id})">${count ? count + (count > 1 ? " comments" : " comment") : ""}</span></div>`;
@@ -283,8 +283,13 @@ function postHtml(p){
     h += list ? list.map(c => `<div class="cm">${avatar(c.profiles && c.profiles.name, false, c.profiles && c.profiles.avatar_url, c.user_id)}<div style="flex:1;min-width:0"><div class="bub"><div class="name lnk" onclick="openProfile('${c.user_id}')">${esc(c.profiles && c.profiles.name)}</div>${esc(c.body)}</div><div class="meta" style="margin:2px 0 0 12px">${ago(c.created_at)}${c.user_id === me.id ? ` · <button class="link" style="min-height:32px;font-size:13px" onclick="delCm(${p.id},${c.id})">Delete</button>` : ""}</div></div></div>`).join("") : `<div class="meta" style="margin-top:10px">Loading…</div>`;
     h += `<div class="cm-form"><input id="c-${p.id}" maxlength="500" placeholder="Write a comment…" aria-label="Write a comment" onkeydown="if(event.key==='Enter')addCm(${p.id})"><button class="btn alt" style="flex:none;padding:0 12px" onmousedown="event.preventDefault()" onclick="toggleEmo('ce-${p.id}')" aria-label="Emoji">😊</button><button class="btn" onclick="addCm(${p.id})">Send</button></div>${emoTray("ce-" + p.id, "c-" + p.id)}`;
   }
-  if (p.user_id !== me.id) h += `<div class="meta" style="margin-top:6px"><span class="lnk" onclick="reportIt('post','${p.id}','${p.user_id}')">🚩 Report</span></div>`;
   return h + `</div>`;
+}
+function postMenu(id){
+  const p = feed.find(x => x.id === id); if (!p) return;
+  sheet([p.user_id === me.id
+    ? { label: "🗑️ Delete post", cls: "red", fn: () => delPost(id) }
+    : { label: "🚩 Report post", cls: "red", fn: () => reportIt("post", String(id), p.user_id) }]);
 }
 function toggleSave(id){
   saved.has(id) ? saved.delete(id) : saved.add(id);
