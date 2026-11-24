@@ -1,41 +1,51 @@
-# Circle Admin Panel — v2 (අදියර 1)
+# Circle Admin Panel — v3 (අදියර 2)
 
 ## දැන් run කරන්න ඕන දේ (පිළිවෙලට)
-1. Supabase → SQL editor → `migration-admin-v2.sql` paste කරලා **Run** (එක පාරයි, ආයෙත් run කළාට කමක් නෑ).
-2. `admin.html` GitHub එකට replace කරන්න → Vercel deploy වෙනකම් මිනිත්තුවක් ඉඳලා `admin.html?v=6` open කරන්න.
-3. දැනට ඉන්න admins ඔක්කොම **super_admin** වෙනවා. අනිත් අයට role දෙන්න:
-```sql
-update public.admins set role = 'moderator' -- හෝ 'admin'
-where user_id = (select id from auth.users where email = 'EMAIL_HERE');
-```
+1. Supabase → SQL editor → `migration-admin-v2.sql` (කලින් run කරලා නැත්නම් විතරක්), ඊට පස්සේ **`migration-admin-v3.sql`** paste කරලා **Run**. (ආයෙත් run කළාට කමක් නෑ.)
+2. GitHub එකට මේ ෆයිල් replace කරන්න: `app.js`, `reels.js`, `admin.html`, `index.html`, `sw.js`, `migration-admin-v3.sql`.
+3. Vercel deploy වුණාම phone එකේ app එක ඇරලා පිටුව refresh කරන්න (cache version `circle-v56`). Admin: `admin.html?v=7`.
 
-## Roles (server එකේ check වෙනවා — SQL functions වල)
-- **moderator:** බලන්න, content delete/hide, warning/notice යවන්න.
-- **admin:** + status වෙනස් කිරීම, profile edit, verify, සියලු posts delete.
+## v3 වල අලුතින් කරපු දේවල් ✅
+**App එක (`app.js`, `reels.js`)**
+- **Enforcement:** blocked / banned / disabled / suspended user ව app එක ඇරපු ගමන් (සහ තත්පර 10 කට වරක් බලලා) logout කරලා, හේතුව සහිත message එකක් පෙන්වනවා. Suspension දවස් ඉවර වුණාම ඒක ඉබේම අයින් වෙනවා.
+- **Restricted user:** බලන්න පුළුවන්, post / comment / reel / message දාන්න බෑ (message එකක් පෙන්වනවා).
+- **Server-side enforcement (SQL):** app එක මග හැරලා API එකෙන් ගියත් write කරන්න බෑ (restrictive RLS policies). Block / ban / disable / suspend කරද්දී Supabase login එකත් lock වෙනවා (`auth.users.banned_until`).
+- **Hidden posts/reels:** admin hide කළාම app එකේ කාටවත් පේන්නේ නෑ (අයිතිකාරයාට සහ admins ට විතරයි). Filter එක database එකේ (RLS) තියෙන්නේ.
+- **Notices:** admin යවන warning / notice / status update app එකේ popup එකක් විදියට පේනවා (OK ඔබලා කියවපු බව සටහන් වෙනවා).
+- **ඩොට් තුන මෙනු:** post වල ••• මෙනුවේ Delete (තමන්ගේ) / Report (අනිත් අයගේ). Reel වල Report මෙනුව ඇතුලට දැම්මා (Home reel card එකේ ••• සහ Reels tab එකේ ⋯).
+- **Comment report:** comment එකක් යටින් "Report" (post comments සහ reel comments දෙකටම).
+
+**Admin panel (`admin.html`)**
+- **Modal forms:** prompt / confirm boxes වෙනුවට නියම modal forms (reason අනිවාර්යයි, Cancel බටන් එක, Delete account එකට "DELETE" type කරන්න ඕන).
+- **User list:** registration date එකතු කළා.
+- **User details:** friends / friend requests (app එක පාවිච්චි කරන්නේ friendships, followers/following නෙවෙයි), profile picture change / remove, Activity history.
+- **Activity history:** devices/sessions + IP, login events (Supabase auth වල තියෙනවා නම් විතරයි), likes given, reports filed/against, recent posts/reels/comments, previous suspensions/bans, profile changes, user ට කළ admin actions. database එකේ නැති දේ "Not recorded" කියලා පෙන්වනවා.
+- **Posts & reels:** Hide / Unhide, selected delete (checkboxes), likes + reactions count, comments බලන්න සහ එකින් එක delete කරන්න, hidden only filter.
+- **Deleted content (🗑️):** admin delete කරන posts / reels / comments trash එකට යනවා, Restore කරන්න පුළුවන් (admin / super_admin). Restore කළාම පරණ likes/comments ආපහු එන්නේ නෑ.
+- **Owner ට notice:** content delete / hide / restore කළාම අයිතිකාරයාට ඉබේම notice යනවා. Account restore කළාමත් notice යනවා.
+- **Reports:** comment reports, Hide post/reel බටන්, comment delete.
+- **Home:** Recent admin activity (අන්තිම 5).
+- **Bug fix:** කලින් hide/delete functions වල `id` එක `uuid` ලෙස තිබුණා. Circle හි ids අංක (bigint) නිසා වැඩ කරන්නේ නැති වෙන්න තිබුණා. දැන් `text` ලෙස ගන්නවා (දෙකටම හරි).
+
+## Roles (server එකේ check වෙනවා)
+- **moderator:** බලන්න, content delete/hide, comments delete, warning/notice යවන්න.
+- **admin:** + status වෙනස් කිරීම, profile edit, picture change, verify, සියලු posts delete, restore.
 - **super_admin:** + account permanently delete.
 - Admin accounts වලට block/ban/delete කරන්න බෑ.
 
-## කරපු වැඩ ✅
-- Dashboard: users, active (7d), online (විනාඩි 2), blocked/banned, suspended, posts, reels, pending/resolved reports.
-- User list: profile pic, නම, username, ID, online/offline, last seen, search (නම/username/ID), filter (status), sort (newest/oldest/last active).
-- User details: email, phone, registered, last login, last seen, status, bio, posts/reels/comments/reports count.
-- Profile edit (නම, username, bio, verified) — reason එක්ක.
-- Block / Unblock / Suspend 1-7-30 දවස් / Restrict / Disable / Ban / Restore / Delete account.
-- Warning සහ notice යවන්න (DB එකේ `admin_notices` table එකට).
-- Delete post/reel/all posts — confirm + reason + log.
-- Admin Activity Log page (search, before/after values).
-- **App එකේ 🚩 Report:** වෙන කෙනෙකුගේ post, reel, profile වලට (`app.js`, `reels.js` වෙනස් කළා, `reportIt()` function එක; `sw.js` cache v54). තමන්ගේ ඒවාට නෑ.
-- **Reports page:** pending/reviewed/resolved/dismissed filter, type filter, reason, reporter + reported user, Mark reviewed / Resolve / Dismiss / Resolve + warn / Delete reported post-reel. (SQL: `admin_handle_report`, migration-admin-v2.sql අන්තිමට අලුතින් එකතු කළා, ආයෙ run කරන්න.)
-- හැම destructive action එකටම reason අනිවාර්යයි.
+## තාම ඉතුරු ⏳
+1. **Followers/following:** Circle හි follow system එකක් නෑ (friends විතරයි). ඒ නිසා friends count පෙන්වනවා.
+2. **Likes history (කවුද කොයි වෙලාවට like කළේ):** `likes` table එකේ time එකක් record වෙන්නේ නෑ, ගණන විතරයි.
+3. **Login history / device info:** Supabase `auth.sessions` සහ `auth.audit_log_entries` වල තියෙනවා නම් විතරයි පේන්නේ.
+4. **Deleted content restore:** storage එකේ ෆයිල් (පින්තූර/වීඩියෝ) admin delete එකෙන් මැකෙන්නේ නෑ. ඒක නිසා restore කළාම පෙනෙනවා. User තමන්ම delete කළ ඒවා trash එකට යන්නේ නෑ.
+5. **Profile picture upload:** admin ට upload කරන්න `post-images` bucket එකේ policy එකක් migration එකෙන් දානවා. ඔබේ bucket නම වෙනස් නම් `migration-admin-v3.sql` හි `'post-images'` වෙනස් කරන්න.
+6. Cover photo / වෙනත් profile fields admin ට edit කරන්න බෑ.
 
-## ඉතුරු වැඩ ⏳ (ඊළඟ අදියර)
-1. **App එකේ enforcement:** blocked/suspended/banned user ව app එකෙන් login/post කරන්න නොදී නවත්තන්න `app.js` වෙනස් කරන්න ඕන. දැනට status එක DB එකේ වෙනස් වෙනවා, app එක තාම ඒක බලන්නේ නෑ.
-2. **Hidden posts/reels:** `hidden` column එක තියෙනවා, admin_hide function එකත් තියෙනවා, ඒත් app එකේ feed එකෙන් hidden ඒවා filter කරන්න ඕන; admin UI එකේ Hide/Unhide බටන් තාම දාලා නෑ.
-4. **Notifications app එකේ පෙන්වීම:** `admin_notices` user ට පෙන්නන්න app එකේ UI එකක් ඕන.
-5. **User activity history:** login history/device info Supabase auth එකෙන් විතරයි (last login). ඉතිරි ඒවා record කරන්නේ නෑ.
-6. Followers/following: app එක පාවිච්චි කරන්නේ friendships, ඒක schema එක බලලා count එකතු කරන්න ඕන.
-7. Profile picture change (admin වෙනුවෙන් upload), selected posts bulk delete, individual comments manage, restore deleted content (දැන් delete permanent).
-8. Prompt boxes වෙනුවට නියම modal forms.
+## කලින් අදියර (v2) ✅
+- Dashboard, user list (search / filter / sort), user details, profile edit, Block / Unblock / Suspend 1-7-30 / Restrict / Disable / Ban / Restore / Delete account.
+- Warning සහ notice, Delete post/reel/all posts, Admin Activity Log, Reports page (Mark reviewed / Resolve / Dismiss / Resolve + warn / Delete).
+- App එකේ 🚩 Report (user, post, reel). `reportIt()` function එක.
+- හැම destructive action එකටම reason අනිවාර්යයි.
 
 ---
 

@@ -284,7 +284,7 @@ async function loadReelCm(){
   if (error){ l.innerHTML = `<div class="rl-msg2">${esc(error.message)}</div>`; return; }
   l.innerHTML = data.length ? data.map(c => {
     const n = c.profiles ? c.profiles.name : "Someone", av = c.profiles ? c.profiles.avatar_url : null;
-    return `<div class="rls-c">${avatar(n, false, av)}<div><b>${esc(n)}</b> <small>${ago(c.created_at)}</small><p>${esc(c.body)}</p></div>${c.user_id === me.id ? `<button onclick="delReelCm(${c.id})" aria-label="Delete comment">✕</button>` : ""}</div>`;
+    return `<div class="rls-c">${avatar(n, false, av)}<div><b>${esc(n)}</b> <small>${ago(c.created_at)}</small><p>${esc(c.body)}</p></div>${c.user_id === me.id ? `<button onclick="delReelCm(${c.id})" aria-label="Delete comment">✕</button>` : `<button onclick="reportIt('comment','rc:${c.id}','${c.user_id}')" aria-label="Report comment" style="font-size:12px">Report</button>`}</div>`;
   }).join("") : `<div class="rl-msg2">No comments yet. Be the first!</div>`;
   setReelCount(id, data.length);
 }
@@ -295,6 +295,7 @@ function setReelCount(id, n){
 }
 async function sendReelCm(){
   const inp = $("rls-in"), body = inp && inp.value.trim(); if (!body || !rcmId) return;
+  if (!canAct()) return;
   inp.disabled = true;
   const { error } = await sb.from("reel_comments").insert({ reel_id: rcmId, user_id: me.id, body });
   inp.disabled = false;
@@ -398,6 +399,7 @@ async function compressReel(file, onProg){
 }
 async function submitReel(){
   if (!reelFile) return alert("Pick a video first.");
+  if (!canAct()) return;
   const btn = $("rn-go"); btn.disabled = true;
   const reset = () => { btn.disabled = false; btn.textContent = "Post reel"; };
   const f = reelFile;

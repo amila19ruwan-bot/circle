@@ -51,6 +51,14 @@
   .user-card { cursor: pointer; }
   .chev { font-size: 30px; color: var(--blue2); padding-right: 4px; }
   .empty { color: var(--muted); text-align: center; padding: 20px 0; }
+  .mbg { position: fixed; inset: 0; background: rgba(10,20,60,.5); z-index: 100; display: flex; align-items: center; justify-content: center; padding: 16px; }
+  .modal { background: #fff; border-radius: 24px; padding: 18px; width: 100%; max-width: 420px; max-height: 90vh; overflow-y: auto; }
+  .modal h3 { margin: 0 0 6px; font-size: 19px; }
+  .chk { display: flex; align-items: center; gap: 8px; margin: 12px 0; }
+  .chk input, .ck { width: 22px; height: 22px; padding: 0; flex: 0 0 auto; }
+  select { font: inherit; padding: 10px 12px; border-radius: 14px; border: 1px solid #c7d2fe; background: #fff; color: var(--ink); flex: 1; min-width: 0; }
+  .bulkbar { position: sticky; top: 70px; z-index: 4; text-align: right; }
+  .cmrow { display: flex; gap: 8px; align-items: flex-start; border-top: 1px solid #e0e7ff; padding: 8px 0; }
 </style>
 </head>
 <body>
@@ -571,6 +579,361 @@ async function handleReport(id, st, warn){
   if (st !== "reviewed") { note = prompt((st === "dismissed" ? "Why dismiss" : "How resolved") + " (required):"); if (!note || !note.trim()) return; }
   try { await rpc("admin_handle_report", { p_id: id, p_status: st, p_note: note.trim(), p_warn: !!warn }); toast("Report " + st); loadReports(); } catch (e) {}
 }
+
+/* ================= Admin v3 (needs migration-admin-v3.sql) ================= */
+/* ---------- modal forms (replace prompt/confirm) ---------- */
+function modal(o){
+  return new Promise(resolve => {
+    const bg = document.createElement("div"); bg.className = "mbg";
+    const fields = (o.fields || []).map(x => {
+      const id = "mf-" + x.name, v = x.value == null ? "" : x.value;
+      if (x.type === "checkbox") return `<label class="chk"><input type="checkbox" id="${id}" ${x.value ? "checked" : ""}> ${esc(x.label)}</label>`;
+      if (x.type === "textarea") return `<label for="${id}">${esc(x.label)}</label><textarea id="${id}" rows="${x.rows || 3}">${esc(v)}</textarea>`;
+      return `<label for="${id}">${esc(x.label)}</label><input id="${id}" value="${esc(v)}" autocomplete="off">`;
+    }).join("");
+    bg.innerHTML = `<div class="modal" role="dialog"><h3>${esc(o.title)}</h3>${o.text ? `<div class="meta">${esc(o.text)}</div>` : ""}${fields}<div class="msg" id="mf-err"></div>
+      <div class="row" style="margin-top:12px"><button class="btn ghost sm" id="mf-no" style="flex:1">Cancel</button><button class="btn sm ${o.danger ? "del" : ""}" id="mf-ok" style="flex:1">${esc(o.ok || "OK")}</button></div></div>`;
+    document.body.appendChild(bg);
+    const close = v => { bg.remove(); resolve(v); };
+    bg.addEventListener("click", e => { if (e.target === bg) close(null); });
+    $("mf-no").onclick = () => close(null);
+    $("mf-ok").onclick = () => {
+      const out = {};
+      for (const x of (o.fields || [])) {
+        const el = $("mf-" + x.name);
+        const val = x.type === "checkbox" ? el.checked : el.value.trim();
+        if (x.required && !val) { $("mf-err").textContent = (x.err || x.label) + " is required."; el.focus(); return; }
+        if (x.equals && val !== x.equals) { $("mf-err").textContent = "Type " + x.equals + " to confirm."; el.focus(); return; }
+        out[x.name] = val;
+      }
+      close(out);
+    };
+    const first = bg.querySelector("input,textarea"); if (first) setTimeout(() => first.focus(), 50);
+  });
+}
+const REASON = { name: "reason", label: "Reason (required)", type: "textarea", required: true, err: "Reason" };
+async function askReason(title, ok, danger, text){
+  const r = await modal({ title, text, ok, danger, fields: [REASON] });
+  return r ? r.reason : null;
+}
+
+/* ---------- navigation additions ---------- */
+let sel = new Set();
+refreshList = function(){
+  if (userCtx) return userCtx.open ? loadUserContent() : loadUserView();
+  if (tab === "content") return loadContent();
+  if (tab === "reports") return loadReports();
+  if (tab === "trash") return loadTrash();
+  if (tab === "users") return loadUsers();
+  return showHomeView();
+};
+const _route3 = route;
+route = function(st){ st = st || { s: "home" }; if (st.s === "trash") { userCtx = null; return loadTrash(); } return _route3(st); };
+
+showHomeView = function(){
+  tab = "home"; userCtx = null;
+  setBody(`<div class="card"><b>Role:</b> ${esc(myRole)}</div><div id="stats" class="stats"></div>
+    <div class="home" style="margin-top:14px">
+      <button class="big" onclick="go({s:'users'})">👤 Profiles</button>
+      <button class="big ghost" onclick="go({s:'content'})">🎬 Posts &amp; Videos</button>
+      <button class="big ghost" onclick="go({s:'reports'})">🚩 Reports</button>
+      <button class="big ghost" onclick="go({s:'log'})">📜 Admin Activity Log</button>
+      ${canStatus() ? `<button class="big ghost" onclick="go({s:'trash'})">🗑️ Deleted content</button>` : ""}</div>
+    <div class="card"><div class="name">Recent admin activity</div><div id="recent" class="meta">Loading…</div></div>`);
+  loadStats(); loadRecent();
+};
+async function loadRecent(){
+  const { data, error } = await sb.from("admin_logs").select("action,reason,created_at,target_user").order("created_at", { ascending: false }).limit(5);
+  if (!$("recent")) return;
+  $("recent").innerHTML = error ? esc(error.message) : !(data || []).length ? "No admin actions yet."
+    : data.map(l => `• <b>${esc(l.action)}</b> · ${esc(when(l.created_at))}${l.reason ? "<br>&nbsp;&nbsp;" + esc(l.reason) : ""}`).join("<br>");
+}
+
+/* ---------- user list: registration date ---------- */
+usersHtml = function(list){
+  if (!list.length) return `<div class="empty">No users found.</div>`;
+  return list.map(p => `<div class="card user-card" onclick="openUser('${esc(p.id)}')"><div class="row">${avatarHtml(p.name, p.avatar_url)}
+    <div class="grow"><div class="name">${esc(p.name || "(no name)")}${p.is_verified ? " ✔" : ""} <span class="meta">${p.username ? "@" + esc(p.username) : ""}</span></div>
+      <div class="meta">${isOnline(p) ? "🟢 Online" : "⚪ Offline"} · ${esc(effStatus(p))}</div>
+      <div class="meta">Last seen: ${p.last_seen ? esc(when(p.last_seen)) : "never"}</div>
+      <div class="meta">Registered: ${p.created_at ? esc(when(p.created_at)) : "—"}</div>
+      <div class="meta">ID: ${esc(p.id)}</div></div><span class="chev">›</span></div></div>`).join("");
+};
+
+/* ---------- user details ---------- */
+loadUserView = async function(){
+  const id = userCtx.id;
+  setBody(`<button class="btn ghost" onclick="closeUser()">‹ Back to users</button><div class="card" id="ucard">Loading…</div><div id="act"></div><div id="list"></div>`);
+  const [pr, info] = await Promise.all([sb.from("profiles").select("*").eq("id", id).maybeSingle(), sb.rpc("admin_user_info", { p_user: id })]);
+  const p = pr.data || {}, i = info.data || {};
+  if (!$("ucard") || !userCtx || userCtx.id !== id) return;
+  const act = (label, st, d, cls) => canStatus() ? `<button class="btn sm ${cls || "ghost"}" onclick="setStatus('${esc(id)}','${st}',${d || 0})">${label}</button>` : "";
+  $("ucard").innerHTML = `<div class="row">${avatarHtml(p.name, p.avatar_url)}<div class="grow"><div class="name">${esc(p.name || "(no name)")}${p.is_verified ? " ✔" : ""}</div>
+    <div class="meta">${p.username ? "@" + esc(p.username) : "no username"}</div></div></div>
+    <div class="meta" style="margin-top:8px">ID: ${esc(id)}<br>Email: ${esc(i.email || "—")} · Phone: ${esc(i.phone || "—")}<br>
+    ${isOnline(p) ? "🟢 Online" : "⚪ Offline"} · Status: <b>${esc(effStatus(p))}</b>${p.suspended_until ? " until " + esc(when(p.suspended_until)) : ""}${p.status_reason ? "<br>Reason: " + esc(p.status_reason) : ""}<br>
+    Registered: ${esc(when(i.registered || p.created_at))}<br>Last login: ${esc(when(i.last_login) || "—")}<br>Last seen: ${esc(when(p.last_seen) || "never")}</div>
+    ${p.bio ? `<div class="body">${esc(p.bio)}</div>` : ""}
+    <div class="stats" style="margin-top:10px">${[["Friends", i.friends], ["Requests sent", i.req_sent], ["Requests received", i.req_received], ["Posts", i.posts], ["Reels", i.reels], ["Comments", i.comments], ["Reports against", i.reports]].map(([l, n]) => `<div class="stat"><b>${n == null ? "—" : n}</b><span>${l}</span></div>`).join("")}</div>
+    <div class="meta" style="margin-top:6px">Circle uses friend connections, so "followers/following" are shown as friends and friend requests.</div>
+    <div class="row" style="margin-top:12px;flex-wrap:wrap">
+      ${canStatus() ? `<button class="btn sm" onclick="editUser('${esc(id)}')">Edit profile</button>
+        <button class="btn sm ghost" onclick="$('avfile').click()">Change picture</button>
+        ${p.avatar_url ? `<button class="btn sm ghost" onclick="removeAvatar('${esc(id)}')">Remove picture</button>` : ""}
+        <input type="file" id="avfile" accept="image/*" class="hidden" onchange="changeAvatar('${esc(id)}',this)">` : ""}
+      ${act("Block", "blocked")}${act("Unblock / Restore", "active")}${act("Suspend 1d", "suspended", 1)}${act("Suspend 7d", "suspended", 7)}${act("Suspend 30d", "suspended", 30)}
+      ${act("Restrict", "restricted")}${act("Disable", "disabled")}${act("Ban", "banned", 0, "del")}
+      <button class="btn sm ghost" onclick="notifyUser('${esc(id)}','warning')">Send warning</button>
+      <button class="btn sm ghost" onclick="notifyUser('${esc(id)}','notice')">Send notice</button>
+      <button class="btn sm ghost" onclick="showActivity('${esc(id)}')">Activity history</button>
+      <button class="btn sm ghost" onclick="showUserContent()">Posts &amp; reels</button>
+      ${canStatus() ? `<button class="btn sm del" onclick="deleteUserPosts('${esc(id)}')">Delete all posts</button>` : ""}
+      ${myRole === "super_admin" ? `<button class="btn sm del" onclick="deleteAccount('${esc(id)}')">Delete account</button>` : ""}</div>
+    ${(i.notices || []).length ? `<div class="meta" style="margin-top:10px"><b>Recent notices sent</b><br>${i.notices.map(n => esc(when(n.created_at)) + " · " + esc(n.kind) + ": " + esc(n.message)).join("<br>")}</div>` : ""}`;
+  window._p = p;
+};
+
+async function setStatus(id, st, days){
+  const label = st === "active" ? "Restore / reactivate account" : "Set status: " + st + (days ? " for " + days + " day(s)" : "");
+  const r = await askReason(label, "Confirm", ["banned", "disabled", "blocked"].includes(st), "The user is told this reason.");
+  if (!r) return;
+  try { await rpc("admin_set_status", { p_user: id, p_status: st, p_days: days, p_reason: r }); toast("Updated"); loadUserView(); } catch (e) {}
+}
+async function editUser(id){
+  const p = window._p || {};
+  const v = await modal({ title: "Edit profile", ok: "Save", fields: [
+    { name: "name", label: "Full name", value: p.name || "", required: true },
+    { name: "username", label: "Username (blank = none)", value: p.username || "" },
+    { name: "bio", label: "Bio", type: "textarea", value: p.bio || "" },
+    { name: "verified", label: "Verified badge", type: "checkbox", value: !!p.is_verified }, REASON] });
+  if (!v) return;
+  try { await rpc("admin_edit_profile", { p_user: id, p_name: v.name, p_username: v.username, p_bio: v.bio, p_verified: v.verified, p_reason: v.reason }); toast("Saved"); loadUserView(); } catch (e) {}
+}
+async function notifyUser(id, kind){
+  const v = await modal({ title: kind === "warning" ? "Send a warning" : "Send a notice", ok: "Send", fields: [{ name: "m", label: "Message", type: "textarea", required: true, rows: 4 }] });
+  if (!v) return;
+  try { await rpc("admin_notify", { p_user: id, p_kind: kind, p_message: v.m }); toast("Sent"); loadUserView(); } catch (e) {}
+}
+async function deleteAccount(id){
+  const v = await modal({ title: "Delete account permanently", text: "This deletes the account and all its data. It cannot be undone.", ok: "Delete forever", danger: true,
+    fields: [{ name: "c", label: "Type DELETE to confirm", required: true, equals: "DELETE" }, REASON] });
+  if (!v) return;
+  try { await rpc("admin_delete_user", { p_user: id, p_reason: v.reason }); toast("Account deleted"); closeUser(); } catch (e) {}
+}
+deleteUserPosts = async function(id){
+  const r = await askReason("Delete ALL posts by this user", "Delete all", true, "They can be restored later from Deleted content.");
+  if (!r) return;
+  try { const n = await rpc("admin_delete_user_posts", { p_user: id, p_reason: r }); toast(`Deleted ${n} post(s)`); refreshList(); } catch (e) {}
+};
+
+/* profile picture */
+function cropSquare(file, size){
+  return new Promise((res, rej) => {
+    const img = new Image(), u = URL.createObjectURL(file);
+    img.onload = () => { const c = document.createElement("canvas"); c.width = c.height = size; const s = Math.min(img.width, img.height);
+      c.getContext("2d").drawImage(img, (img.width - s) / 2, (img.height - s) / 2, s, s, 0, 0, size, size); URL.revokeObjectURL(u);
+      c.toBlob(b => b ? res(b) : rej(new Error("Image failed")), "image/jpeg", .85); };
+    img.onerror = () => rej(new Error("That file is not an image"));
+    img.src = u;
+  });
+}
+async function changeAvatar(id, input){
+  const f = input.files && input.files[0]; input.value = ""; if (!f) return;
+  const r = await askReason("Change profile picture", "Upload", false); if (!r) return;
+  try {
+    toast("Uploading…");
+    const blob = await cropSquare(f, 480), path = `${id}/avatar-admin-${Date.now()}.jpg`;
+    const { error } = await sb.storage.from("post-images").upload(path, blob, { contentType: "image/jpeg" });
+    if (error) throw error;
+    const url = sb.storage.from("post-images").getPublicUrl(path).data.publicUrl;
+    await rpc("admin_set_avatar", { p_user: id, p_url: url, p_reason: r }); toast("Picture changed"); loadUserView();
+  } catch (e) { toast("Error: " + (e.message || e)); }
+}
+async function removeAvatar(id){
+  const r = await askReason("Remove profile picture", "Remove", true); if (!r) return;
+  try { await rpc("admin_set_avatar", { p_user: id, p_url: "", p_reason: r }); toast("Picture removed"); loadUserView(); } catch (e) {}
+}
+
+/* activity history: only what the database really records */
+async function showActivity(id){
+  const box = $("act"); if (!box) return; box.innerHTML = `<div class="card meta">Loading…</div>`;
+  let a; try { a = await rpc("admin_user_activity", { p_user: id }); } catch (e) { box.innerHTML = `<div class="card msg">Run migration-admin-v3.sql first.</div>`; return; }
+  const list = (arr, fn, none) => (arr || []).length ? arr.map(fn).join("<br>") : `<span>${none}</span>`;
+  const h = a.history || [];
+  const sus = h.filter(x => x.action === "set_status"), prof = h.filter(x => /^(edit_profile|change_avatar|remove_avatar)$/.test(x.action)), other = h.filter(x => !sus.includes(x) && !prof.includes(x));
+  const line = x => `${esc(when(x.created_at))} · <b>${esc(x.action)}</b>${x.old_value || x.new_value ? " " + esc(JSON.stringify(x.old_value)) + " → " + esc(JSON.stringify(x.new_value)) : ""}${x.reason ? "<br>&nbsp;&nbsp;Reason: " + esc(x.reason) : ""}`;
+  box.innerHTML = `<div class="card meta"><div class="name">Activity history</div>
+    <p><b>Devices / sessions</b><br>${list(a.sessions, s => `${esc(when(s.created_at))} · ${esc(s.ip || "")} · ${esc((s.user_agent || "").slice(0, 90))}`, "Not recorded by this project")}</p>
+    <p><b>Login &amp; security events</b><br>${list(a.auth_events, s => `${esc(when(s.created_at))} · ${esc(s.action || "")} ${esc(s.ip || "")}`, "Not recorded by this project")}</p>
+    <p><b>Interactions</b><br>Likes given: ${a.likes_given} · Reports filed: ${a.reports_filed} · Reports against: ${a.reports_against}</p>
+    <p><b>Recent posts</b><br>${list(a.recent_posts, x => `${esc(when(x.created_at))} · ${esc(x.text)}`, "None")}</p>
+    <p><b>Recent reels</b><br>${list(a.recent_reels, x => `${esc(when(x.created_at))} · ${esc(x.text)}`, "None")}</p>
+    <p><b>Recent comments</b><br>${list(a.recent_comments, x => `${esc(when(x.created_at))} · ${esc(x.text)}`, "None")}</p>
+    <p><b>Previous suspensions, bans and status changes</b><br>${list(sus, line, "None")}</p>
+    <p><b>Profile changes</b><br>${list(prof, line, "None")}</p>
+    <p><b>Other admin actions on this user</b><br>${list(other, line, "None")}</p></div>`;
+}
+
+/* ---------- posts & reels management ---------- */
+const keyOf = (t, id) => t + ":" + id;
+function toggleSel(t, id, on){ on ? sel.add(keyOf(t, id)) : sel.delete(keyOf(t, id)); updBulk(); }
+function updBulk(){ const b = $("bulk"); if (b) { b.textContent = "Delete selected (" + sel.size + ")"; b.classList.toggle("hidden", !sel.size); } }
+async function bulkDelete(){
+  if (!sel.size) return;
+  const r = await askReason("Delete " + sel.size + " selected item(s)", "Delete", true, "They can be restored later from Deleted content.");
+  if (!r) return;
+  const by = {}; sel.forEach(k => { const [t, id] = [k.slice(0, k.indexOf(":")), k.slice(k.indexOf(":") + 1)]; (by[t] = by[t] || []).push(id); });
+  try { let n = 0; for (const t in by) n += await rpc("admin_delete_many", { p_table: t, p_ids: by[t], p_reason: r }); toast("Deleted " + n); sel = new Set(); refreshList(); } catch (e) {}
+}
+function itemCard(it, showUser){
+  const t = it.kind === "post" ? "posts" : "reels", id = esc(it.id), pr2 = it.profiles || {};
+  const media = it.kind === "post" ? (it.image_url ? `<img class="thumb" src="${esc(it.image_url)}" alt="">` : "")
+    : (it.video_url ? `<video class="thumb" src="${esc(it.video_url)}" controls preload="metadata" playsinline></video>` : "");
+  const text = it.kind === "post" ? it.body : it.caption;
+  return `<div class="card"><div class="row"><input type="checkbox" class="ck" ${sel.has(keyOf(t, it.id)) ? "checked" : ""} onchange="toggleSel('${t}','${id}',this.checked)" aria-label="Select">
+    ${showUser ? avatarHtml(pr2.name, pr2.avatar_url) : ""}
+    <div class="grow">${showUser ? `<div class="name">${esc(pr2.name || "?")}</div>` : ""}<div class="meta">${it.kind === "post" ? "Post" : "Reel"} · ${esc(when(it.created_at))}${it.hidden ? ` · <b style="color:#b42318">HIDDEN</b>` : ""}</div></div></div>
+    ${text ? `<div class="body">${esc(text)}</div>` : ""}${media}
+    <div class="row" style="margin-top:10px;flex-wrap:wrap">
+      <button class="btn sm ghost" onclick="toggleExtras('${t}','${id}')">💬 Likes &amp; comments</button>
+      <button class="btn sm ghost" onclick="hideItem('${t}','${id}',${!it.hidden})">${it.hidden ? "Unhide" : "Hide"}</button>
+      <button class="btn sm del" onclick="delContent('${t}','${id}')">Delete</button></div>
+    <div id="x-${t}-${id}" class="hidden"></div></div>`;
+}
+const bulkBar = () => `<div class="bulkbar"><button class="btn sm del hidden" id="bulk" onclick="bulkDelete()">Delete selected (0)</button></div>`;
+async function fetchItems(userId){
+  const pc = "id,body,image_url,created_at,hidden,user_id,profiles!user_id(name,avatar_url)", rc = "id,caption,video_url,created_at,hidden,user_id,profiles!user_id(name,avatar_url)";
+  let pq = sb.from("posts").select(pc).order("created_at", { ascending: false }).limit(50), rq = sb.from("reels").select(rc).order("created_at", { ascending: false }).limit(30);
+  if (userId) { pq = pq.eq("user_id", userId); rq = rq.eq("user_id", userId); }
+  const [pr, rr] = await Promise.all([pq, rq]);
+  if (pr.error || rr.error) throw (pr.error || rr.error);
+  return [...(pr.data || []).map(p => ({ ...p, kind: "post" })), ...(rr.data || []).map(r => ({ ...r, kind: "reel" }))].sort((x, y) => new Date(y.created_at) - new Date(x.created_at));
+}
+let cFilter = "all";
+loadContent = async function(){
+  tab = "content"; sel = new Set();
+  setBody(`<button class="btn ghost" onclick="showHome()">‹ Home</button>${bulkBar()}
+    <div class="card search"><select id="cf">${[["all", "All"], ["posts", "Posts only"], ["reels", "Reels only"], ["hidden", "Hidden only"]].map(([v, l]) => `<option value="${v}" ${v === cFilter ? "selected" : ""}>${l}</option>`).join("")}</select></div>
+    <div id="list"><div class="empty">Loading…</div></div>`);
+  $("cf").onchange = () => { cFilter = $("cf").value; loadContent(); };
+  try {
+    let items = await fetchItems(null);
+    if (tab !== "content" || !$("list")) return;
+    if (cFilter === "posts") items = items.filter(i => i.kind === "post"); else if (cFilter === "reels") items = items.filter(i => i.kind === "reel"); else if (cFilter === "hidden") items = items.filter(i => i.hidden);
+    $("list").innerHTML = items.length ? items.map(i => itemCard(i, true)).join("") : `<div class="empty">Nothing here.</div>`;
+  } catch (e) { if ($("list")) $("list").innerHTML = `<div class="msg">${esc(e.message)} (run migration-admin-v2.sql)</div>`; }
+};
+loadUserContent = async function(){
+  const id = userCtx.id; sel = new Set();
+  if ($("list")) $("list").innerHTML = `<div class="empty">Loading…</div>`;
+  try {
+    const items = await fetchItems(id);
+    if (!userCtx || userCtx.id !== id || !$("list")) return;
+    $("list").innerHTML = bulkBar() + (items.length ? items.map(i => itemCard(i, false)).join("") : `<div class="empty">No posts or reels from this user.</div>`);
+  } catch (e) { if ($("list")) $("list").innerHTML = `<div class="msg">${esc(e.message)}</div>`; }
+};
+async function hideItem(t, id, hide){
+  const r = hide ? await askReason("Hide this " + (t === "posts" ? "post" : "reel"), "Hide", false, "Hidden content disappears from the app for everyone except the owner.") : "unhidden";
+  if (!r) return;
+  try { await rpc("admin_hide", { p_table: t, p_id: String(id), p_hidden: hide, p_reason: r }); toast(hide ? "Hidden" : "Visible again"); refreshList(); } catch (e) {}
+}
+delContent = async function(table, id){
+  const names = { posts: "post", reels: "reel", comments: "comment", reel_comments: "comment" };
+  const r = await askReason("Delete this " + names[table], "Delete", true, "The owner is told. Posts and reels can be restored from Deleted content.");
+  if (!r) return;
+  try { await rpc("admin_delete_content", { p_table: table, p_id: String(id), p_reason: r }); toast("Deleted"); refreshList(); } catch (e) {}
+};
+deletePost = id => delContent("posts", id);
+deleteReel = id => delContent("reels", id);
+
+/* likes + comments of one post/reel; comments can be deleted one by one */
+async function toggleExtras(t, id){
+  const box = $("x-" + t + "-" + id); if (!box) return;
+  if (!box.classList.contains("hidden")) { box.classList.add("hidden"); return; }
+  box.classList.remove("hidden"); loadExtras(t, id);
+}
+async function loadExtras(t, id){
+  const box = $("x-" + t + "-" + id); if (!box) return; box.innerHTML = `<div class="meta" style="margin-top:8px">Loading…</div>`;
+  const post = t === "posts", ct = post ? "comments" : "reel_comments", lt = post ? "likes" : "reel_likes", fk = post ? "post_id" : "reel_id";
+  const [c, l] = await Promise.all([sb.from(ct).select("id,body,created_at,user_id,profiles!user_id(name)").eq(fk, id).order("created_at").limit(100), sb.from(lt).select("user_id,reaction").eq(fk, id)]);
+  let likes = l.data; if (l.error) { const l2 = await sb.from(lt).select("user_id").eq(fk, id); likes = l2.data; }
+  const rx = {}; (likes || []).forEach(x => { const k = x.reaction || "like"; rx[k] = (rx[k] || 0) + 1; });
+  box.innerHTML = `<div class="meta" style="margin-top:8px"><b>Likes: ${(likes || []).length}</b> ${Object.keys(rx).length ? "(" + Object.entries(rx).map(([k, n]) => esc(k) + " " + n).join(", ") + ")" : ""}<br><b>Comments: ${(c.data || []).length}</b></div>` +
+    ((c.data || []).map(x => `<div class="cmrow"><div class="grow meta"><b>${esc((x.profiles || {}).name || "?")}</b> · ${esc(when(x.created_at))}<br>${esc(x.body)}</div><button class="btn sm del" onclick="delComment('${ct}','${esc(x.id)}','${t}','${esc(id)}')">Delete</button></div>`).join("") || "");
+}
+async function delComment(ct, cid, t, id){
+  const r = await askReason("Delete this comment", "Delete", true, "The author is told."); if (!r) return;
+  try { await rpc("admin_delete_content", { p_table: ct, p_id: String(cid), p_reason: r }); toast("Comment deleted"); loadExtras(t, id); } catch (e) {}
+}
+
+/* ---------- deleted content (restore) ---------- */
+async function loadTrash(){
+  tab = "trash";
+  setBody(`<button class="btn ghost" onclick="showHome()">‹ Home</button><div class="card meta">Content deleted by admins. Restoring puts it back as it was (its old likes and comments are not restored).</div><div id="list"><div class="empty">Loading…</div></div>`);
+  const { data, error } = await sb.from("admin_trash").select("*").eq("restored", false).order("deleted_at", { ascending: false }).limit(100);
+  if (!$("list")) return;
+  if (error) { $("list").innerHTML = `<div class="msg">${esc(error.message)} (run migration-admin-v3.sql)</div>`; return; }
+  if (!data.length) { $("list").innerHTML = `<div class="empty">Nothing deleted.</div>`; return; }
+  $("list").innerHTML = data.map(x => { const d = x.row_data || {}, txt = d.body || d.caption || "";
+    return `<div class="card"><div class="name">${esc(x.table_name)}</div><div class="meta">Deleted ${esc(when(x.deleted_at))}<br>Owner: ${esc(x.owner_id || "—")}<br>Reason: ${esc(x.reason || "—")}</div>
+    ${txt ? `<div class="body">${esc(txt)}</div>` : ""}${d.image_url ? `<img class="thumb" src="${esc(d.image_url)}" alt="">` : ""}${d.video_url ? `<video class="thumb" src="${esc(d.video_url)}" controls preload="metadata" playsinline></video>` : ""}
+    <div class="row" style="margin-top:10px"><button class="btn sm" onclick="restoreItem(${x.id})">Restore</button></div></div>`; }).join("");
+}
+async function restoreItem(tid){
+  const v = await modal({ title: "Restore this content?", text: "The owner will be told it was restored.", ok: "Restore", fields: [] }); if (!v) return;
+  try { await rpc("admin_restore", { p_trash_id: tid }); toast("Restored"); loadTrash(); } catch (e) {}
+}
+
+/* ---------- reports: comment reports + modal forms ---------- */
+function parseTarget(r){
+  if (r.target_type === "post") return { tbl: "posts", id: r.target_id };
+  if (r.target_type === "reel") return { tbl: "reels", id: r.target_id };
+  if (r.target_type === "comment") { const m = /^(rc|c):(.+)$/.exec(r.target_id || ""); if (m) return { tbl: m[1] === "rc" ? "reel_comments" : "comments", id: m[2] }; }
+  return null;
+}
+loadReports = async function(){
+  tab = "reports";
+  const opts = (arr, cur) => arr.map(s => `<option ${s === cur ? "selected" : ""}>${s}</option>`).join("");
+  setBody(`<button class="btn ghost" onclick="showHome()">‹ Home</button>
+    <div class="card search"><div class="row"><select id="rs">${opts(["pending", "reviewed", "resolved", "dismissed", "all"], rStatus)}</select>
+    <select id="rt">${opts(["all", "user", "post", "reel", "comment"], rType)}</select></div></div>
+    <div id="list"><div class="empty">Loading…</div></div>`);
+  $("rs").onchange = $("rt").onchange = () => { rStatus = $("rs").value; rType = $("rt").value; loadReports(); };
+  let q = sb.from("reports").select("*,reporter:profiles!reports_reporter_id_fkey(name,avatar_url),target:profiles!reports_target_user_fkey(name,avatar_url)").order("created_at", { ascending: false }).limit(100);
+  if (rStatus !== "all") q = q.eq("status", rStatus);
+  if (rType !== "all") q = q.eq("target_type", rType);
+  const { data, error } = await q;
+  if (!$("list")) return;
+  if (error) { $("list").innerHTML = `<div class="msg">${esc(error.message)} (run migration-admin-v2.sql)</div>`; return; }
+  if (!data.length) { $("list").innerHTML = `<div class="empty">No ${rStatus === "all" ? "" : esc(rStatus) + " "}reports.</div>`; return; }
+  $("list").innerHTML = data.map(r => {
+    const open = r.status === "pending" || r.status === "reviewed", t = parseTarget(r);
+    return `<div class="card"><div class="name">${esc(r.target_type.toUpperCase())} report · ${esc(r.status)}</div>
+      <div class="meta">${esc(when(r.created_at))}${r.handled_at ? " · handled " + esc(when(r.handled_at)) : ""}</div>
+      <div class="body"><b>Reason:</b> ${esc(r.reason || "—")}</div>
+      <div class="row">${avatarHtml((r.reporter || {}).name, (r.reporter || {}).avatar_url)}<div class="grow meta">Reported by: ${esc((r.reporter || {}).name || "unknown")}<br>${esc(r.reporter_id || "")}</div></div>
+      <div class="row" style="margin-top:8px">${avatarHtml((r.target || {}).name, (r.target || {}).avatar_url)}<div class="grow meta">Reported user: ${esc((r.target || {}).name || "unknown")}<br>${esc(r.target_user || "")}</div></div>
+      <div class="meta">Target ID: ${esc(r.target_id)}</div>
+      ${r.note ? `<div class="meta"><b>Admin note:</b> ${esc(r.note)}</div>` : ""}
+      <div class="row" style="margin-top:10px;flex-wrap:wrap">
+        ${r.target_user ? `<button class="btn sm ghost" onclick="openUser('${esc(r.target_user)}')">Open user</button>` : ""}
+        ${open && r.status === "pending" ? `<button class="btn sm ghost" onclick="handleReport(${r.id},'reviewed')">Mark reviewed</button>` : ""}
+        ${open ? `<button class="btn sm" onclick="handleReport(${r.id},'resolved')">Resolve</button><button class="btn sm ghost" onclick="handleReport(${r.id},'dismissed')">Dismiss</button>` : ""}
+        ${open && r.target_user ? `<button class="btn sm ghost" onclick="handleReport(${r.id},'resolved',true)">Resolve + warn</button>` : ""}
+        ${open && t && (t.tbl === "posts" || t.tbl === "reels") ? `<button class="btn sm ghost" onclick="hideItem('${t.tbl}','${esc(t.id)}',true)">Hide ${esc(r.target_type)}</button>` : ""}
+        ${open && t ? `<button class="btn sm del" onclick="delContent('${t.tbl}','${esc(t.id)}')">Delete ${esc(r.target_type)}</button>` : ""}
+      </div></div>`;
+  }).join("");
+};
+handleReport = async function(id, st, warn){
+  let note = "";
+  if (st !== "reviewed") {
+    const v = await modal({ title: st === "dismissed" ? "Dismiss report" : warn ? "Resolve and warn the user" : "Resolve report", ok: "Confirm",
+      fields: [{ name: "note", label: st === "dismissed" ? "Why dismiss (required)" : "How was it resolved (required)", type: "textarea", required: true }] });
+    if (!v) return; note = v.note;
+  }
+  try { await rpc("admin_handle_report", { p_id: id, p_status: st, p_note: note, p_warn: !!warn }); toast("Report " + st); loadReports(); } catch (e) {}
+};
 
 start();
 </script>

@@ -141,9 +141,12 @@ async function boot(user){
     if (error){ $("auth").classList.remove("hidden"); return say(error.message); }
     me = data;
   }
+  const blockMsg = statusBlockMsg(me);
+  if (blockMsg){ forceLogout(blockMsg); return; }
   $("auth").classList.add("hidden");
   $("app").classList.remove("hidden");
   updateHeader();
+  setTimeout(checkNotices, 1200);
   startRealtime();
   enablePush(false).catch(() => {});
   startPresence();
@@ -280,7 +283,7 @@ function postHtml(p){
   h += `<div class="acts"><button class="act like${liked ? " on rx-" + mk : ""}" onpointerdown="rxDown(event,${p.id})" onpointerup="rxUp(event,${p.id})" onpointerleave="rxCancel()" onpointercancel="rxCancel()" oncontextmenu="return false" aria-label="Like (hold for reactions)">${liked ? `<b class="rxe">${REACTS[mk][0]}</b><span>${REACTS[mk][1]}</span>` : `${ICON_THUMB}<span>Like</span>`}</button><button class="act" onclick="toggleCm(${p.id})" aria-label="Comment">${ICON_CHAT}<span>Comment</span></button><button class="act" onclick="sharePost(${p.id})" aria-label="Share">${ICON_SHARE}<span>Share</span></button><button class="act ${saved.has(p.id) ? "sv" : ""}" onclick="toggleSave(${p.id})" aria-label="Save">${ICON_SAVE}<span>Save</span></button></div>`;
   if (openCm.has(p.id)){
     const list = cmts[p.id];
-    h += list ? list.map(c => `<div class="cm">${avatar(c.profiles && c.profiles.name, false, c.profiles && c.profiles.avatar_url, c.user_id)}<div style="flex:1;min-width:0"><div class="bub"><div class="name lnk" onclick="openProfile('${c.user_id}')">${esc(c.profiles && c.profiles.name)}</div>${esc(c.body)}</div><div class="meta" style="margin:2px 0 0 12px">${ago(c.created_at)}${c.user_id === me.id ? ` · <button class="link" style="min-height:32px;font-size:13px" onclick="delCm(${p.id},${c.id})">Delete</button>` : ""}</div></div></div>`).join("") : `<div class="meta" style="margin-top:10px">Loading…</div>`;
+    h += list ? list.map(c => `<div class="cm">${avatar(c.profiles && c.profiles.name, false, c.profiles && c.profiles.avatar_url, c.user_id)}<div style="flex:1;min-width:0"><div class="bub"><div class="name lnk" onclick="openProfile('${c.user_id}')">${esc(c.profiles && c.profiles.name)}</div>${esc(c.body)}</div><div class="meta" style="margin:2px 0 0 12px">${ago(c.created_at)}${c.user_id === me.id ? ` · <button class="link" style="min-height:32px;font-size:13px" onclick="delCm(${p.id},${c.id})">Delete</button>` : ` · <button class="link" style="min-height:32px;font-size:13px" onclick="reportIt('comment','c:${c.id}','${c.user_id}')">Report</button>`}</div></div></div>`).join("") : `<div class="meta" style="margin-top:10px">Loading…</div>`;
     h += `<div class="cm-form"><input id="c-${p.id}" maxlength="500" placeholder="Write a comment…" aria-label="Write a comment" onkeydown="if(event.key==='Enter')addCm(${p.id})"><button class="btn alt" style="flex:none;padding:0 12px" onmousedown="event.preventDefault()" onclick="toggleEmo('ce-${p.id}')" aria-label="Emoji">😊</button><button class="btn" onclick="addCm(${p.id})">Send</button></div>${emoTray("ce-" + p.id, "c-" + p.id)}`;
   }
   return h + `</div>`;
@@ -376,6 +379,7 @@ async function loadCm(id){
 async function addCm(id){
   const el = $("c-" + id), body = el && el.value.trim();
   if (!body) return;
+  if (!canAct()) return;
   const { error } = await sb.from("comments").insert({ post_id: id, user_id: me.id, body });
   if (error) return alert(error.message);
   await loadCm(id);
@@ -422,6 +426,7 @@ async function shrink(file, max = 1280){
 async function addPost(){
   const body = $("p-body").value.trim();
   if (!body && !pickedFile) return;
+  if (!canAct()) return;
   const btn = $("p-go"); btn.disabled = true;
   let image_url = null;
   if (pickedFile){
@@ -1125,6 +1130,7 @@ function pickCompose(input){
 async function submitCompose(){
   const body = $("c-body").value.trim();
   if (!body && !composeFile) return;
+  if (!canAct()) return;
   const btn = $("c-go"); btn.disabled = true; btn.textContent = "Posting…";
   let image_url = null;
   if (composeFile){
@@ -1166,9 +1172,9 @@ async function doInstall(){
   sb.auth.onAuthStateChange(ev => { if (ev === "PASSWORD_RECOVERY") { recovering = true; $("auth").classList.add("hidden"); $("app").classList.add("hidden"); $("reset").classList.remove("hidden"); } });
   const { data: { session } } = await sb.auth.getSession();
   if (recovering) { $("reset").classList.remove("hidden"); return; }
-  if (session) boot(session.user); else $("auth").classList.remove("hidden");
+  if (session) boot(session.user); else { $("auth").classList.remove("hidden"); try { const m = sessionStorage.getItem("circle_block_msg"); if (m){ sessionStorage.removeItem("circle_block_msg"); say(m); } } catch (e) {} }
 })();
-setInterval(() => { if (me && !document.hidden) refreshBell(); }, 10000);
+setInterval(() => { if (me && !document.hidden){ refreshBell(); checkStatus(); checkNotices(); } }, 10000);
 if ("serviceWorker" in navigator) navigator.serviceWorker.register("sw.js").catch(() => {});
 
 
@@ -1237,4 +1243,55 @@ async function reportIt(type, id, userId){
   if (!reason || !reason.trim()) return;
   const { error } = await sb.from("reports").insert({ reporter_id: me.id, target_type: type, target_id: String(id), target_user: userId, reason: reason.trim().slice(0, 500) });
   alert(error ? "Could not send the report. Please try again later." : "Thanks, your report was sent to the admins.");
+}
+
+
+/* ---------- admin enforcement + notices (v3) ---------- */
+/* Account status comes from the admin panel. Blocked, banned, disabled or still-suspended users are signed out.
+   Restricted users can read but not post, comment or message. The database also enforces this (migration-admin-v3.sql). */
+function effStatus(p){
+  const s = (p && p.status) || "active";
+  if (s === "suspended" && p.suspended_until && new Date(p.suspended_until) < new Date()) return "active";
+  return s;
+}
+function statusBlockMsg(p){
+  const s = effStatus(p), why = p && p.status_reason ? " Reason: " + p.status_reason : "";
+  if (s === "blocked") return "Your account has been blocked by an admin." + why;
+  if (s === "banned") return "Your account has been permanently banned." + why;
+  if (s === "disabled") return "Your account has been disabled." + why;
+  if (s === "suspended") return "Your account is suspended until " + new Date(p.suspended_until).toLocaleString() + "." + why;
+  return null;
+}
+async function forceLogout(msg){
+  try { sessionStorage.setItem("circle_block_msg", msg); } catch (e) {}
+  try { await sb.auth.signOut(); } catch (e) {}
+  try { history.replaceState(null, ""); } catch (e) {}
+  location.reload();
+}
+async function checkStatus(){
+  if (!me) return;
+  const { data, error } = await sb.from("profiles").select("status,suspended_until,status_reason").eq("id", me.id).maybeSingle();
+  if (error || !data) return;
+  me.status = data.status; me.suspended_until = data.suspended_until; me.status_reason = data.status_reason;
+  const m = statusBlockMsg(me);
+  if (m) forceLogout(m);
+}
+function canAct(){
+  if (me && effStatus(me) === "restricted"){ alert("Your account is restricted by an admin. You can browse, but you cannot post, comment or send messages." + (me.status_reason ? "\nReason: " + me.status_reason : "")); return false; }
+  return true;
+}
+let noticeOpen = false;
+async function checkNotices(){
+  if (!me || noticeOpen) return;
+  const { data, error } = await sb.from("admin_notices").select("id,kind,message,created_at").eq("user_id", me.id).eq("read", false).order("created_at").limit(1);
+  if (error || !data || !data.length) return;
+  const n = data[0]; noticeOpen = true;
+  const d = document.createElement("div"); d.className = "sheet"; d.id = "notice-box"; d.style.alignItems = "center"; d.style.justifyContent = "center";
+  const title = n.kind === "warning" ? "⚠️ Warning from admin" : n.kind === "status" ? "🔔 Account update" : "📢 Message from admin";
+  d.innerHTML = `<div class="sheet-in" style="border-radius:26px;max-width:420px;margin:0 16px"><b style="font-size:19px">${title}</b><div style="white-space:pre-wrap;word-break:break-word;font-size:16px;line-height:1.45">${esc(n.message)}</div><small style="color:var(--mute)">${esc(new Date(n.created_at).toLocaleString())}</small><button id="notice-ok" style="text-align:center;background:linear-gradient(135deg,#1F5CF0,#7C4DFF);color:#fff">OK</button></div>`;
+  document.body.appendChild(d);
+  $("notice-ok").onclick = async () => {
+    await sb.from("admin_notices").update({ read: true }).eq("id", n.id);
+    d.remove(); noticeOpen = false; setTimeout(checkNotices, 300);
+  };
 }
