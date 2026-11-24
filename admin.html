@@ -409,6 +409,7 @@ function showHomeView(){
     <div class="home" style="margin-top:14px">
       <button class="big" onclick="go({s:'users'})">👤 Profiles</button>
       <button class="big ghost" onclick="go({s:'content'})">🎬 Posts &amp; Videos</button>
+      <button class="big ghost" onclick="go({s:'reports'})">🚩 Reports</button>
       <button class="big ghost" onclick="go({s:'log'})">📜 Admin Activity Log</button></div>`);
   loadStats();
 }
@@ -526,7 +527,50 @@ async function loadLog(){
   run();
 }
 const _route = route;
-route = function(st){ st = st || { s: "home" }; if (st.s === "log") { userCtx = null; return loadLog(); } return _route(st); };
+route = function(st){ st = st || { s: "home" }; if (st.s === "reports") { userCtx = null; return loadReports(); }
+  if (st.s === "log") { userCtx = null; return loadLog(); } return _route(st); };
+
+/* ---------- Reports ---------- */
+let rStatus = "pending", rType = "all";
+async function loadReports(){
+  tab = "reports";
+  const opts = (arr, cur) => arr.map(s => `<option ${s === cur ? "selected" : ""}>${s}</option>`).join("");
+  setBody(`<button class="btn ghost" onclick="showHome()">‹ Home</button>
+    <div class="card search"><div class="row"><select id="rs">${opts(["pending", "reviewed", "resolved", "dismissed", "all"], rStatus)}</select>
+    <select id="rt">${opts(["all", "user", "post", "reel", "comment"], rType)}</select></div></div>
+    <div id="list"><div class="empty">Loading…</div></div>`);
+  $("rs").onchange = $("rt").onchange = () => { rStatus = $("rs").value; rType = $("rt").value; loadReports(); };
+  let q = sb.from("reports").select("*,reporter:profiles!reports_reporter_id_fkey(name,avatar_url),target:profiles!reports_target_user_fkey(name,avatar_url)").order("created_at", { ascending: false }).limit(100);
+  if (rStatus !== "all") q = q.eq("status", rStatus);
+  if (rType !== "all") q = q.eq("target_type", rType);
+  const { data, error } = await q;
+  if (!$("list")) return;
+  if (error) { $("list").innerHTML = `<div class="msg">${esc(error.message)} (run migration-admin-v2.sql)</div>`; return; }
+  if (!data.length) { $("list").innerHTML = `<div class="empty">No ${rStatus === "all" ? "" : esc(rStatus) + " "}reports.</div>`; return; }
+  $("list").innerHTML = data.map(r => {
+    const open = r.status === "pending" || r.status === "reviewed";
+    const tbl = r.target_type === "post" ? "posts" : r.target_type === "reel" ? "reels" : null;
+    return `<div class="card"><div class="name">${esc(r.target_type.toUpperCase())} report · ${esc(r.status)}</div>
+      <div class="meta">${esc(when(r.created_at))}</div>
+      <div class="body"><b>Reason:</b> ${esc(r.reason || "—")}</div>
+      <div class="row">${avatarHtml((r.reporter || {}).name, (r.reporter || {}).avatar_url)}<div class="grow meta">Reported by: ${esc((r.reporter || {}).name || "unknown")}<br>${esc(r.reporter_id || "")}</div></div>
+      <div class="row" style="margin-top:8px">${avatarHtml((r.target || {}).name, (r.target || {}).avatar_url)}<div class="grow meta">Reported user: ${esc((r.target || {}).name || "unknown")}<br>${esc(r.target_user || "")}</div></div>
+      <div class="meta">Target ID: ${esc(r.target_id)}</div>
+      ${r.note ? `<div class="meta"><b>Admin note:</b> ${esc(r.note)}</div>` : ""}
+      <div class="row" style="margin-top:10px;flex-wrap:wrap">
+        ${r.target_user ? `<button class="btn sm ghost" onclick="openUser('${esc(r.target_user)}')">Open user</button>` : ""}
+        ${open && r.status === "pending" ? `<button class="btn sm ghost" onclick="handleReport(${r.id},'reviewed')">Mark reviewed</button>` : ""}
+        ${open ? `<button class="btn sm" onclick="handleReport(${r.id},'resolved')">Resolve</button><button class="btn sm ghost" onclick="handleReport(${r.id},'dismissed')">Dismiss</button>` : ""}
+        ${open && r.target_user ? `<button class="btn sm ghost" onclick="handleReport(${r.id},'resolved',true)">Resolve + warn</button>` : ""}
+        ${open && tbl ? `<button class="btn sm del" onclick="delContent('${tbl}','${esc(r.target_id)}')">Delete ${esc(r.target_type)}</button>` : ""}
+      </div></div>`;
+  }).join("");
+}
+async function handleReport(id, st, warn){
+  let note = "";
+  if (st !== "reviewed") { note = prompt((st === "dismissed" ? "Why dismiss" : "How resolved") + " (required):"); if (!note || !note.trim()) return; }
+  try { await rpc("admin_handle_report", { p_id: id, p_status: st, p_note: note.trim(), p_warn: !!warn }); toast("Report " + st); loadReports(); } catch (e) {}
+}
 
 start();
 </script>

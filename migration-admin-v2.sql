@@ -172,3 +172,21 @@ end $$;
 grant execute on function public.admin_role(), public.admin_set_status(uuid,text,int,text), public.admin_edit_profile(uuid,text,text,text,boolean,text),
   public.admin_notify(uuid,text,text), public.admin_hide(text,uuid,boolean,text), public.admin_delete_content(text,uuid,text),
   public.admin_delete_user_posts(uuid,text), public.admin_delete_user(uuid,text), public.admin_dashboard(), public.admin_user_info(uuid) to authenticated;
+
+-- 7. Reports handling (added after first v2 release; safe to re-run)
+create or replace function public.admin_handle_report(p_id bigint, p_status text, p_note text, p_warn boolean) returns void
+language plpgsql security definer set search_path = public as $$
+declare r public.reports;
+begin
+  perform public._need(array['super_admin','admin','moderator']);
+  if p_status not in ('reviewed','resolved','dismissed') then raise exception 'Bad status'; end if;
+  if p_status in ('resolved','dismissed') and coalesce(trim(p_note), '') = '' then raise exception 'Note is required'; end if;
+  select * into r from public.reports where id = p_id;
+  if not found then raise exception 'Report not found'; end if;
+  update public.reports set status = p_status, note = p_note, handled_by = auth.uid(), handled_at = now() where id = p_id;
+  if p_warn and r.target_user is not null then
+    insert into public.admin_notices (user_id, kind, message) values (r.target_user, 'warning', 'Warning after a report: ' || coalesce(nullif(trim(p_note), ''), r.reason, 'policy violation'));
+  end if;
+  perform public._log(r.target_user, 'report_' || p_status, p_note, jsonb_build_object('report', p_id, 'status', r.status), jsonb_build_object('status', p_status, 'warned', p_warn));
+end $$;
+grant execute on function public.admin_handle_report(bigint, text, text, boolean) to authenticated;
