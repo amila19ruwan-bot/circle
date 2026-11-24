@@ -94,3 +94,6 @@ body {
 /* call page: nicer background for voice calls (video calls keep the video) */
 #call-ui:not(.cl-vid) { background: linear-gradient(160deg, #1e3a8a 0%, #4338ca 55%, #7c3aed 100%) !important; }
 #call-ui .cl-name { letter-spacing: 0.2px; }
+
+/* no pull-to-refresh while a call is running: pulling down reloads the page and would drop the call */
+html.in-call, html.in-call body, html.in-call #main { overscroll-behavior-y: none; }

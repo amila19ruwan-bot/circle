@@ -406,7 +406,7 @@ function callMinimize(){
 }
 function callExpand(){
   const ui = document.getElementById("call-ui"); if (ui) ui.classList.remove("cl-min");
-  callMini = false;
+  callMini = false; backStage = 0;
   const m = document.getElementById("call-mini"); if (m) m.remove();
 }
 /* back order while a call is in the top bar: 1st back = top bar, 2nd back = Messages list, 3rd back = home feed */
@@ -419,9 +419,11 @@ window.addEventListener("popstate", () => {
     if (cur && cur.t !== "inbox") navTo({ t: "inbox" }, true); /* 2nd back: Messages list */
     return;
   }
-  if (cur && cur.t !== "home") navTo({ t: "home" }, false); /* 3rd back: home feed */
+  /* 3rd back: home feed. Stay on home while a call is running, so back never leaves the app (that would drop the call). */
+  navTo({ t: "home" }, false);
 });
 setInterval(() => {
+  document.documentElement.classList.toggle("in-call", !!call);
   if (!call){ if (document.getElementById("call-mini")) callExpand(); return; }
   if (!call.guarded){
     call.guarded = true;
