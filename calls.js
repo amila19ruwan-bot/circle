@@ -383,3 +383,43 @@ function msgFromCall(){
   endCall("decline");
   if (id) openChat(id);
 }
+
+/* ---------- back button during a call: keep the call alive as a top bar ---------- */
+let callMini = false;
+function callMinimize(){
+  const ui = document.getElementById("call-ui");
+  if (!call || !ui) return;
+  ui.classList.add("cl-min");
+  callMini = true;
+  let m = document.getElementById("call-mini");
+  if (!m){
+    m = document.createElement("div");
+    m.id = "call-mini";
+    m.innerHTML = `<div class="cm-info"><div class="cm-name"></div><div class="cm-st"></div></div><button class="cm-end" aria-label="End call">${CALL_IC.end}</button>`;
+    m.addEventListener("click", e => {
+      if (e.target.closest && e.target.closest(".cm-end")) { hangUp(); return; }
+      callExpand();
+    });
+    document.body.appendChild(m);
+  }
+  m.querySelector(".cm-name").textContent = call.u ? call.u.name : "";
+}
+function callExpand(){
+  const ui = document.getElementById("call-ui"); if (ui) ui.classList.remove("cl-min");
+  callMini = false;
+  const m = document.getElementById("call-mini"); if (m) m.remove();
+}
+window.addEventListener("popstate", () => {
+  if (!call || call.state === "incoming") return;
+  callMinimize();
+  history.pushState(Object.assign({}, history.state, { callguard: true }), "");
+});
+setInterval(() => {
+  if (!call){ if (document.getElementById("call-mini")) callExpand(); return; }
+  if (call.state !== "incoming" && !call.guarded){
+    call.guarded = true;
+    history.pushState(Object.assign({}, history.state, { callguard: true }), "");
+  }
+  const m = document.getElementById("call-mini");
+  if (m){ const st = document.getElementById("cl-st"); m.querySelector(".cm-st").textContent = st ? st.textContent : ""; }
+}, 1000);
