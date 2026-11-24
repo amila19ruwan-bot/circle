@@ -24,13 +24,13 @@ where user_id = (select id from auth.users where email = 'EMAIL_HERE');
 - Warning සහ notice යවන්න (DB එකේ `admin_notices` table එකට).
 - Delete post/reel/all posts — confirm + reason + log.
 - Admin Activity Log page (search, before/after values).
+- **App එකේ 🚩 Report:** වෙන කෙනෙකුගේ post, reel, profile වලට (`app.js`, `reels.js` වෙනස් කළා, `reportIt()` function එක; `sw.js` cache v54). තමන්ගේ ඒවාට නෑ.
 - **Reports page:** pending/reviewed/resolved/dismissed filter, type filter, reason, reporter + reported user, Mark reviewed / Resolve / Dismiss / Resolve + warn / Delete reported post-reel. (SQL: `admin_handle_report`, migration-admin-v2.sql අන්තිමට අලුතින් එකතු කළා, ආයෙ run කරන්න.)
 - හැම destructive action එකටම reason අනිවාර්යයි.
 
 ## ඉතුරු වැඩ ⏳ (ඊළඟ අදියර)
 1. **App එකේ enforcement:** blocked/suspended/banned user ව app එකෙන් login/post කරන්න නොදී නවත්තන්න `app.js` වෙනස් කරන්න ඕන. දැනට status එක DB එකේ වෙනස් වෙනවා, app එක තාම ඒක බලන්නේ නෑ.
 2. **Hidden posts/reels:** `hidden` column එක තියෙනවා, admin_hide function එකත් තියෙනවා, ඒත් app එකේ feed එකෙන් hidden ඒවා filter කරන්න ඕන; admin UI එකේ Hide/Unhide බටන් තාම දාලා නෑ.
-3. **App එකේ "Report" බටන්:** admin පැත්තේ Reports page එක හරි, ඒත් users ට report කරන්න app එකේ (post/reel/user) බටන් එකක් නෑ, ඒක නිසා list එක හිස්. ඒක `app.js`/`reels.js` වල එකතු කරන්න ඕන.
 4. **Notifications app එකේ පෙන්වීම:** `admin_notices` user ට පෙන්නන්න app එකේ UI එකක් ඕන.
 5. **User activity history:** login history/device info Supabase auth එකෙන් විතරයි (last login). ඉතිරි ඒවා record කරන්නේ නෑ.
 6. Followers/following: app එක පාවිච්චි කරන්නේ friendships, ඒක schema එක බලලා count එකතු කරන්න ඕන.

@@ -208,7 +208,7 @@ function reelHtml(r){
       ${rlLikeBtn(r)}
       <button class="rl-b" onclick="openReelCm(${r.id})" aria-label="Comments">${IC_CMT}<span id="rl-cn-${r.id}">${cm}</span></button>
       <button class="rl-b" onclick="shareReel(${r.id})" aria-label="Share">${IC_SHR}<span>Share</span></button>
-      ${r.user_id === me.id ? `<button class="rl-b" onclick="deleteReel(${r.id})" aria-label="Delete">${IC_DEL}<span>Delete</span></button>` : ""}
+      ${r.user_id === me.id ? `<button class="rl-b" onclick="deleteReel(${r.id})" aria-label="Delete">${IC_DEL}<span>Delete</span></button>` : `<button class="rl-b" onclick="reportIt('reel','${r.id}','${r.user_id}')" aria-label="Report"><span style="font-size:22px">🚩</span><span>Report</span></button>`}
     </div>
     <div class="rl-info">
       <div class="rl-who" onclick="openProfile('${r.user_id}')">${avatar(n, false, av)}<b>${esc(n)}</b><small>${ago(r.created_at)}</small></div>

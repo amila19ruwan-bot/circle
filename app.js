@@ -283,6 +283,7 @@ function postHtml(p){
     h += list ? list.map(c => `<div class="cm">${avatar(c.profiles && c.profiles.name, false, c.profiles && c.profiles.avatar_url, c.user_id)}<div style="flex:1;min-width:0"><div class="bub"><div class="name lnk" onclick="openProfile('${c.user_id}')">${esc(c.profiles && c.profiles.name)}</div>${esc(c.body)}</div><div class="meta" style="margin:2px 0 0 12px">${ago(c.created_at)}${c.user_id === me.id ? ` · <button class="link" style="min-height:32px;font-size:13px" onclick="delCm(${p.id},${c.id})">Delete</button>` : ""}</div></div></div>`).join("") : `<div class="meta" style="margin-top:10px">Loading…</div>`;
     h += `<div class="cm-form"><input id="c-${p.id}" maxlength="500" placeholder="Write a comment…" aria-label="Write a comment" onkeydown="if(event.key==='Enter')addCm(${p.id})"><button class="btn alt" style="flex:none;padding:0 12px" onmousedown="event.preventDefault()" onclick="toggleEmo('ce-${p.id}')" aria-label="Emoji">😊</button><button class="btn" onclick="addCm(${p.id})">Send</button></div>${emoTray("ce-" + p.id, "c-" + p.id)}`;
   }
+  if (p.user_id !== me.id) h += `<div class="meta" style="margin-top:6px"><span class="lnk" onclick="reportIt('post','${p.id}','${p.user_id}')">🚩 Report</span></div>`;
   return h + `</div>`;
 }
 function toggleSave(id){
@@ -561,7 +562,7 @@ async function renderProfile(id){
     else if (fr.status === "pending" && fr.requester === me.id) h += `<div class="meta">Request sent · waiting for a reply</div>`;
     else if (fr.status === "pending") h += `<button class="btn" onclick="answer(${fr.id},'accepted')">Confirm</button><button class="btn alt" onclick="answer(${fr.id},'declined')">Delete</button>`;
     const isFr = fr && fr.status === "accepted";
-    h += `<button class="btn alt" ${isFr ? 'style="flex:none;width:50px;padding:0" aria-label="Share"' : ""} onclick="shareProfile('${esc(u.name).replace(/'/g, "")}')">${ic("share")}${isFr ? "" : "Share"}</button>`;
+    h += `<button class="btn alt" ${isFr ? 'style="flex:none;width:50px;padding:0" aria-label="Share"' : ""} onclick="shareProfile('${esc(u.name).replace(/'/g, "")}')">${ic("share")}${isFr ? "" : "Share"}</button><button class="btn alt" style="flex:none;width:50px;padding:0" aria-label="Report" onclick="reportIt('user','${id}','${id}')">🚩</button>`;
   }
   h += `</div>`;
   if (!mine) h += `<div class="btns"><button class="btn soft" style="width:100%" onclick="${blockSet.has(id) ? "unblockUser" : "blockUser"}('${id}')">🚫 ${blockSet.has(id) ? "Unblock" : "Block"}</button></div>`;
@@ -1221,4 +1222,14 @@ function callFromList(id, kind){ if (!me) return; chatId = id; startCall(kind); 
 /* green phone + blue video buttons, used on every chat row */
 function qcalls(id){
   return `<div class="qcalls"><button class="qb grn" onclick="event.stopPropagation();callFromList('${id}','audio')" aria-label="Voice call">${ICON_PHONE}</button><button class="qb blu" onclick="event.stopPropagation();callFromList('${id}','video')" aria-label="Video call">${ICON_VIDEO}</button></div>`;
+}
+
+
+/* ---------- Report (posts, reels, users) -> admin panel "Reports" ---------- */
+async function reportIt(type, id, userId){
+  if (!me || userId === me.id) return;
+  const reason = prompt("Why are you reporting this " + type + "? (spam, abuse, nudity, fake account, other)");
+  if (!reason || !reason.trim()) return;
+  const { error } = await sb.from("reports").insert({ reporter_id: me.id, target_type: type, target_id: String(id), target_user: userId, reason: reason.trim().slice(0, 500) });
+  alert(error ? "Could not send the report. Please try again later." : "Thanks, your report was sent to the admins.");
 }
