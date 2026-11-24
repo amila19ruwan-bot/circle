@@ -45,6 +45,9 @@
   .search { margin-bottom: 8px; }
   .msg { min-height: 20px; color: #B42318; font-size: 14px; margin-top: 8px; }
   .toast { position: fixed; left: 50%; bottom: 24px; transform: translateX(-50%); background: var(--ink); color: #fff; padding: 10px 16px; border-radius: 999px; font-size: 14px; z-index: 50; }
+  .home { display: grid; gap: 16px; margin-top: 30px; }
+  .big { border: 0; border-radius: 999px; padding: 22px; font: inherit; font-size: 20px; font-weight: 800; color: #fff; background: linear-gradient(135deg, var(--blue2), var(--blue)); box-shadow: 0 10px 22px rgba(10,63,216,.35); cursor: pointer; }
+  .big.ghost { background: #fff; color: var(--blue); border: 2px solid var(--blue2); box-shadow: none; }
   .user-card { cursor: pointer; }
   .chev { font-size: 30px; color: var(--blue2); padding-right: 4px; }
   .empty { color: var(--muted); text-align: center; padding: 20px 0; }
@@ -83,14 +86,6 @@
     <button onclick="logout()">Log out</button>
   </header>
   <main>
-    <div class="stats" id="stats"></div>
-
-    <div class="tabs">
-      <button class="tab on" data-tab="users" onclick="setTab('users')">Users</button>
-      <button class="tab" data-tab="posts" onclick="setTab('posts')">Posts</button>
-      <button class="tab" data-tab="reels" onclick="setTab('reels')">Reels</button>
-    </div>
-
     <div id="tabBody"></div>
   </main>
 </div>
@@ -123,8 +118,7 @@ async function start(){
   const { data, error } = await sb.rpc("is_admin");
   if (error || data !== true) return showOnly("denied");
   showOnly("panel");
-  loadStats();
-  loadTab();
+  showHome();
 }
 
 $("loginForm").addEventListener("submit", async e => {
@@ -165,13 +159,20 @@ async function loadStats(){
 /* ---------- tabs ---------- */
 function setTab(t){
   tab = t; userCtx = null;
-  document.querySelectorAll(".tab").forEach(b => b.classList.toggle("on", b.dataset.tab === t));
   loadTab();
 }
 function loadTab(){
   if (tab === "users") return loadUsers();
-  if (tab === "posts") return loadPosts();
-  return loadReels();
+  if (tab === "content") return loadContent();
+  return showHome();
+}
+function showHome(){
+  tab = "home"; userCtx = null;
+  setBody(`
+    <div class="home">
+      <button class="big" onclick="setTab('users')">👤 Profiles</button>
+      <button class="big ghost" onclick="setTab('content')">🎬 Posts &amp; Videos</button>
+    </div>`);
 }
 function setBody(html){ $("tabBody").innerHTML = html; }
 function avatarHtml(name, url){
@@ -197,6 +198,7 @@ function usersHtml(list){
 }
 async function loadUsers(){
   setBody(`
+    <button class="btn ghost" onclick="showHome()">‹ Home</button>
     <div class="card search"><input id="q" placeholder="Search by name" value="${esc(userSearch)}"></div>
     <div id="list"><div class="empty">Loading…</div></div>`);
   $("q").addEventListener("keydown", e => { if (e.key === "Enter") { userSearch = $("q").value.trim(); loadUsers(); } });
@@ -210,7 +212,41 @@ async function deleteUserPosts(id){
   const { data, error } = await sb.from("posts").delete().eq("user_id", id).select("id");
   if (error) return toast("Error: " + error.message);
   toast(`Deleted ${data ? data.length : 0} post(s)`);
-  refreshList(); loadStats();
+  refreshList(); 
+}
+
+/* ---------- posts & reels (all) ---------- */
+async function loadContent(){
+  tab = "content";
+  setBody(`<button class="btn ghost" onclick="showHome()">‹ Home</button><div id="list"><div class="empty">Loading…</div></div>`);
+  const [pr, rr] = await Promise.all([
+    sb.from("posts").select("id,body,image_url,created_at,profiles!user_id(name,avatar_url)").order("created_at", { ascending: false }).limit(50),
+    sb.from("reels").select("id,caption,video_url,created_at,profiles!user_id(name,avatar_url)").order("created_at", { ascending: false }).limit(30)
+  ]);
+  if (tab !== "content" || !$("list")) return;
+  if (pr.error || rr.error) { $("list").innerHTML = `<div class="msg">${esc((pr.error || rr.error).message)}</div>`; return; }
+  const items = [
+    ...(pr.data || []).map(p => ({ ...p, kind: "post" })),
+    ...(rr.data || []).map(r => ({ ...r, kind: "reel" }))
+  ].sort((x, y) => new Date(y.created_at) - new Date(x.created_at));
+  if (!items.length) { $("list").innerHTML = `<div class="empty">No posts or reels.</div>`; return; }
+  $("list").innerHTML = items.map(it => {
+    const pr2 = it.profiles || {};
+    const media = it.kind === "post"
+      ? (it.image_url ? `<img class="thumb" src="${esc(it.image_url)}" alt="">` : "")
+      : (it.video_url ? `<video class="thumb" src="${esc(it.video_url)}" controls preload="metadata" playsinline></video>` : "");
+    const text = it.kind === "post" ? it.body : it.caption;
+    const del = it.kind === "post" ? `deletePost('${esc(it.id)}')` : `deleteReel('${esc(it.id)}')`;
+    return `
+    <div class="card">
+      <div class="row">${avatarHtml(pr2.name, pr2.avatar_url)}
+        <div class="grow"><div class="name">${esc(pr2.name || "?")}</div><div class="meta">${it.kind === "post" ? "Post" : "Reel"} · ${esc(when(it.created_at))}</div></div>
+      </div>
+      ${text ? `<div class="body">${esc(text)}</div>` : ""}
+      ${media}
+      <div class="row" style="margin-top:10px"><button class="btn sm del" onclick="${del}">Delete ${it.kind === "post" ? "post" : "reel"}</button></div>
+    </div>`;
+  }).join("");
 }
 
 /* ---------- posts ---------- */
@@ -239,7 +275,7 @@ async function deletePost(id){
   if (error) return toast("Error: " + error.message);
   if (!data || !data.length) return toast("Not deleted (no permission)");
   toast("Post deleted");
-  refreshList(); loadStats();
+  refreshList(); 
 }
 
 /* ---------- reels ---------- */
@@ -268,7 +304,7 @@ async function deleteReel(id){
   if (error) return toast("Error: " + error.message);
   if (!data || !data.length) return toast("Not deleted (no permission)");
   toast("Reel deleted");
-  refreshList(); loadStats();
+  refreshList(); 
 }
 
 /* ---------- one user: two buttons (posts & reels, delete all) ---------- */
