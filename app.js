@@ -1178,12 +1178,14 @@ async function pushNotify(to, payload){
   try {
     if (!me || !to) return;
     const { data: { session } } = await sb.auth.getSession();
-    if (!session) return;
+    if (!session) return soon("push: not logged in");
     /* login token goes in its own header; the Authorization header carries only the public key */
-    await fetch(PUSH_URL, {
+    const r = await fetch(PUSH_URL, {
       method: "POST",
       headers: { "Content-Type": "application/json", "apikey": SUPABASE_KEY, "Authorization": "Bearer " + SUPABASE_KEY, "x-user-token": session.access_token },
       body: JSON.stringify({ to, ...payload })
     });
-  } catch (e) {}
+    const t = await r.text();
+    soon("push " + r.status + ": " + t.slice(0, 120));
+  } catch (e) { soon("push error: " + String(e.message || e).slice(0, 120)); }
 }
