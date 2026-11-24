@@ -980,31 +980,40 @@ function chips(key, map, kind){ return `<div class="chips">${Object.entries(map)
 function swRow(key, label, sub){ return `<div class="swrow" onclick="flipCfg('${key}')"><div><b>${label}</b><small>${sub}</small></div><span class="sw${cfg[key] ? " on" : ""}"><i></i></span></div>`; }
 let blkPpl = [];
 function renderSettings(){ drawSettings(); fillBlocked(); }
-function drawSettings(){
-  const m = $("main"), y = m.scrollTop;
-  const head = (e, bg, t, sub) => `<div class="sh"><span class="si" style="background:${bg}">${e}</span><div><b>${t}</b>${sub ? `<small>${sub}</small>` : ""}</div></div>`;
-  m.innerHTML = `<button class="back" onclick="goBack()">‹ Back</button>
-  <div class="card sg">${head("🔊", "linear-gradient(135deg,#60a5fa,#1d4ed8)", "Vibration & Sound", "Manage vibration and sound settings")}
+function setHead(e, bg, t, sub){ return `<div class="sh"><span class="si" style="background:${bg}">${e}</span><div><b>${t}</b>${sub ? `<small>${sub}</small>` : ""}</div></div>`; }
+function setRow(k, e, bg, t, sub){ return `<div class="card sg setrow" onclick="openSetSub('${k}')">${setHead(e, bg, t, sub)}<span class="chev">›</span></div>`; }
+const SET_SEC = {
+  sound: () => `<div class="card sg">${setHead("🔊", "linear-gradient(135deg,#60a5fa,#1d4ed8)", "Vibration & Sound", "Manage vibration and sound settings")}
     <div class="meta">Sound volume</div>${chips("vol", VOLS, "in")}
     <div class="meta">Incoming message tone</div>${chips("inTone", TONES, "in")}
     <div class="meta">Incoming vibration</div>${chips("inVib", VIBS, "in")}
     <div class="meta">Sent message tone</div>${chips("outTone", TONES, "out")}
-    <div class="meta">Sent vibration</div>${chips("outVib", VIBS, "out")}
-  </div>
-  <div class="card sg">${head("💬", "linear-gradient(135deg,#22c55e,#15803d)", "Message Status", "Control sent, delivered and seen options")}
-    ${swRow("ticks", "Show Sent / Delivered / Seen", "Ticks and the status text under my messages")}${swRow("rr", "Let others see when I read", "If off, people see Delivered but never Seen")}
-  </div>
-  <div class="card sg">${head("🎥", "linear-gradient(135deg,#a855f7,#7c3aed)", "Video Call Quality", "Set video call quality")}
-    <div class="vqwrap">${typeof vqChips === "function" ? vqChips() : ""}</div>
-  </div>
-  <div class="card sg">${head("🛡️", "linear-gradient(135deg,#2563eb,#1e3a8a)", "Privacy", "Manage your privacy settings")}
-    ${swRow("online", "Show my Online status", "If off, nobody sees you as Online")}
-  </div>
-  <div class="card sg">${head("🔔", "linear-gradient(135deg,#fb923c,#f59e0b)", "Notifications", "Customize notifications for messages and calls")}
-    <div class="meta" id="push-st">Checking…</div><button class="btn" style="width:100%;margin-top:10px" onclick="pushOn()">🔔 Turn on notifications</button>
-  </div>
-  ${installEv ? `<div class="card sg">${head("📲", "linear-gradient(135deg,#06b6d4,#0e7490)", "Install app")}<button class="btn" style="width:100%" onclick="doInstall()">📲 Install Circle</button></div>` : ""}
-  <div class="card sg">${head("⛔", "linear-gradient(135deg,#334155,#0f172a)", "Blocked People")}<div id="blk-list"></div></div>`;
+    <div class="meta">Sent vibration</div>${chips("outVib", VIBS, "out")}</div>`,
+  status: () => `<div class="card sg">${setHead("💬", "linear-gradient(135deg,#22c55e,#15803d)", "Message Status", "Control sent, delivered and seen options")}
+    ${swRow("ticks", "Show Sent / Delivered / Seen", "Ticks and the status text under my messages")}${swRow("rr", "Let others see when I read", "If off, people see Delivered but never Seen")}</div>`,
+  quality: () => `<div class="card sg">${setHead("🎥", "linear-gradient(135deg,#a855f7,#7c3aed)", "Video Call Quality", "Set video call quality")}
+    <div class="vqwrap">${typeof vqChips === "function" ? vqChips() : ""}</div></div>`,
+  privacy: () => `<div class="card sg">${setHead("🛡️", "linear-gradient(135deg,#2563eb,#1e3a8a)", "Privacy", "Manage your privacy settings")}
+    ${swRow("online", "Show my Online status", "If off, nobody sees you as Online")}</div>`,
+  notif: () => `<div class="card sg">${setHead("🔔", "linear-gradient(135deg,#fb923c,#f59e0b)", "Notifications", "Customize notifications for messages and calls")}
+    <div class="meta" id="push-st">Checking…</div><button class="btn" style="width:100%;margin-top:10px" onclick="pushOn()">🔔 Turn on notifications</button></div>`,
+  install: () => `<div class="card sg">${setHead("📲", "linear-gradient(135deg,#06b6d4,#0e7490)", "Install app", "Add Circle to your home screen")}
+    <button class="btn" style="width:100%" onclick="doInstall()">📲 Install Circle</button></div>`,
+  blocked: () => `<div class="card sg">${setHead("⛔", "linear-gradient(135deg,#334155,#0f172a)", "Blocked People", "")}<div id="blk-list"></div></div>`
+};
+function openSetSub(k){ navTo({ t: "settings", s: k }); }
+function drawSettings(){
+  const m = $("main"), y = m.scrollTop, sec = cur && cur.s;
+  const back = `<button class="back" onclick="goBack()">‹ Back</button>`;
+  if (sec && SET_SEC[sec]) m.innerHTML = back + SET_SEC[sec]();
+  else m.innerHTML = back +
+    setRow("sound", "🔊", "linear-gradient(135deg,#60a5fa,#1d4ed8)", "Vibration & Sound", "Tones, volume and vibration") +
+    setRow("status", "💬", "linear-gradient(135deg,#22c55e,#15803d)", "Message Status", "Control sent, delivered and seen options") +
+    setRow("quality", "🎥", "linear-gradient(135deg,#a855f7,#7c3aed)", "Video Call Quality", "Low, Medium or High") +
+    setRow("privacy", "🛡️", "linear-gradient(135deg,#2563eb,#1e3a8a)", "Privacy", "Online status and more") +
+    setRow("notif", "🔔", "linear-gradient(135deg,#fb923c,#f59e0b)", "Notifications", "Messages and calls") +
+    (installEv ? setRow("install", "📲", "linear-gradient(135deg,#06b6d4,#0e7490)", "Install app", "Add Circle to your home screen") : "") +
+    setRow("blocked", "⛔", "linear-gradient(135deg,#334155,#0f172a)", "Blocked People", "Unblock people you blocked");
   m.scrollTop = y; paintBlocked(); paintPushSt();
 }
 async function fillBlocked(){

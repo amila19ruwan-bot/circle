@@ -113,3 +113,8 @@ html.in-call, html.in-call body, html.in-call #main { overscroll-behavior-y: non
 .sh small { display: block; color: var(--cw-muted); font-size: 13px; }
 .card.sg .vqwrap { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 8px; }
 .card.sg .vqwrap .btn { margin: 0 !important; flex: 1 1 0; min-width: 96px; }
+
+/* settings: tappable section rows with a chevron */
+.card.setrow { display: flex; align-items: center; justify-content: space-between; cursor: pointer; }
+.card.setrow .sh { margin: 0; flex: 1; }
+.card.setrow .chev { font-size: 34px; line-height: 1; color: var(--cw-blue-2); padding: 0 6px; }
