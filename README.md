@@ -1,111 +1,162 @@
-# Circle Admin Panel — v3 (අදියර 2)
+# Circle → Play Store + Real-time Call Ring (පිලිවෙලට කරන්න ඕන දේවල්)
 
-## දැන් run කරන්න ඕන දේ (පිළිවෙලට)
-1. Supabase → SQL editor → `migration-admin-v2.sql` (කලින් run කරලා නැත්නම් විතරක්), ඊට පස්සේ **`migration-admin-v3.sql`** paste කරලා **Run**. (ආයෙත් run කළාට කමක් නෑ.)
-2. GitHub එකට මේ ෆයිල් replace කරන්න: `app.js`, `reels.js`, `admin.html`, `index.html`, `sw.js`, `migration-admin-v3.sql`.
-3. Vercel deploy වුණාම phone එකේ app එක ඇරලා පිටුව refresh කරන්න (cache version `circle-v56`). Admin: `admin.html?v=7`.
+අරමුණ: Circle app එක **Play Store එකට** දාන්න, ඒ වගේම ෆෝන් එක lock කරලා / app එක වහලා තිබුණත් **WhatsApp වගේ full-screen call ring** එකක් එන්න.
 
-## v3 වල අලුතින් කරපු දේවල් ✅
-**App එක (`app.js`, `reels.js`)**
-- **Enforcement:** blocked / banned / disabled / suspended user ව app එක ඇරපු ගමන් (සහ තත්පර 10 කට වරක් බලලා) logout කරලා, හේතුව සහිත message එකක් පෙන්වනවා. Suspension දවස් ඉවර වුණාම ඒක ඉබේම අයින් වෙනවා.
-- **Restricted user:** බලන්න පුළුවන්, post / comment / reel / message දාන්න බෑ (message එකක් පෙන්වනවා).
-- **Server-side enforcement (SQL):** app එක මග හැරලා API එකෙන් ගියත් write කරන්න බෑ (restrictive RLS policies). Block / ban / disable / suspend කරද්දී Supabase login එකත් lock වෙනවා (`auth.users.banned_until`).
-- **Hidden posts/reels:** admin hide කළාම app එකේ කාටවත් පේන්නේ නෑ (අයිතිකාරයාට සහ admins ට විතරයි). Filter එක database එකේ (RLS) තියෙන්නේ.
-- **Notices:** admin යවන warning / notice / status update app එකේ popup එකක් විදියට පේනවා (OK ඔබලා කියවපු බව සටහන් වෙනවා).
-- **ඩොට් තුන මෙනු:** post වල ••• මෙනුවේ Delete (තමන්ගේ) / Report (අනිත් අයගේ). Reel වල Report මෙනුව ඇතුලට දැම්මා (Home reel card එකේ ••• සහ Reels tab එකේ ⋯).
-- **Comment report:** comment එකක් යටින් "Report" (post comments සහ reel comments දෙකටම).
+> ⚠️ මේ README එක **සැලැස්ම** (plan). Native Android code (Capacitor project, call ring code, send-push update, GitHub Actions workflow) තවම ලියලා නෑ. Phase 4 වලදී Claude ලියලා දෙනවා. ඒක ඔයාගේ phone / GitHub එකේ test කරද්දි පළවෙනි පාරටම 100% වැඩ කරන්නේ නැති වෙන්න පුළුවන්, error log එවුවාම fix කරනවා.
 
-**Admin panel (`admin.html`)**
-- **Modal forms:** prompt / confirm boxes වෙනුවට නියම modal forms (reason අනිවාර්යයි, Cancel බටන් එක, Delete account එකට "DELETE" type කරන්න ඕන).
-- **User list:** registration date එකතු කළා.
-- **User details:** friends / friend requests (app එක පාවිච්චි කරන්නේ friendships, followers/following නෙවෙයි), profile picture change / remove, Activity history.
-- **Activity history:** devices/sessions + IP, login events (Supabase auth වල තියෙනවා නම් විතරයි), likes given, reports filed/against, recent posts/reels/comments, previous suspensions/bans, profile changes, user ට කළ admin actions. database එකේ නැති දේ "Not recorded" කියලා පෙන්වනවා.
-- **Posts & reels:** Hide / Unhide, selected delete (checkboxes), likes + reactions count, comments බලන්න සහ එකින් එක delete කරන්න, hidden only filter.
-- **Deleted content (🗑️):** admin delete කරන posts / reels / comments trash එකට යනවා, Restore කරන්න පුළුවන් (admin / super_admin). Restore කළාම පරණ likes/comments ආපහු එන්නේ නෑ.
-- **Owner ට notice:** content delete / hide / restore කළාම අයිතිකාරයාට ඉබේම notice යනවා. Account restore කළාමත් notice යනවා.
-- **Reports:** comment reports, Hide post/reel බටන්, comment delete.
-- **Home:** Recent admin activity (අන්තිම 5).
-- **Bug fix:** කලින් hide/delete functions වල `id` එක `uuid` ලෙස තිබුණා. Circle හි ids අංක (bigint) නිසා වැඩ කරන්නේ නැති වෙන්න තිබුණා. දැන් `text` ලෙස ගන්නවා (දෙකටම හරි).
-
-## Roles (server එකේ check වෙනවා)
-- **moderator:** බලන්න, content delete/hide, comments delete, warning/notice යවන්න.
-- **admin:** + status වෙනස් කිරීම, profile edit, picture change, verify, සියලු posts delete, restore.
-- **super_admin:** + account permanently delete.
-- Admin accounts වලට block/ban/delete කරන්න බෑ.
-
-## තාම ඉතුරු ⏳
-1. **Followers/following:** Circle හි follow system එකක් නෑ (friends විතරයි). ඒ නිසා friends count පෙන්වනවා.
-2. **Likes history (කවුද කොයි වෙලාවට like කළේ):** `likes` table එකේ time එකක් record වෙන්නේ නෑ, ගණන විතරයි.
-3. **Login history / device info:** Supabase `auth.sessions` සහ `auth.audit_log_entries` වල තියෙනවා නම් විතරයි පේන්නේ.
-4. **Deleted content restore:** storage එකේ ෆයිල් (පින්තූර/වීඩියෝ) admin delete එකෙන් මැකෙන්නේ නෑ. ඒක නිසා restore කළාම පෙනෙනවා. User තමන්ම delete කළ ඒවා trash එකට යන්නේ නෑ.
-5. **Profile picture upload:** admin ට upload කරන්න `post-images` bucket එකේ policy එකක් migration එකෙන් දානවා. ඔබේ bucket නම වෙනස් නම් `migration-admin-v3.sql` හි `'post-images'` වෙනස් කරන්න.
-6. Cover photo / වෙනත් profile fields admin ට edit කරන්න බෑ.
-
-## කලින් අදියර (v2) ✅
-- Dashboard, user list (search / filter / sort), user details, profile edit, Block / Unblock / Suspend 1-7-30 / Restrict / Disable / Ban / Restore / Delete account.
-- Warning සහ notice, Delete post/reel/all posts, Admin Activity Log, Reports page (Mark reviewed / Resolve / Dismiss / Resolve + warn / Delete).
-- App එකේ 🚩 Report (user, post, reel). `reportIt()` function එක.
-- හැම destructive action එකටම reason අනිවාර්යයි.
+**සලකුණු:** 👤 = ඔයා කරන්න ඕන, 🤖 = Claude ලියලා දෙනවා.
 
 ---
 
-# Circle Admin Panel
+## Phase 0 — Accounts (කලින් හදාගන්න)
 
-Admin panel එක: `https://circle-indol-tau.vercel.app/admin.html`
+- [ ] 👤 **GitHub** (තියෙනවා)
+- [ ] 👤 **Supabase** (තියෙනවා) → https://supabase.com/dashboard/project/swmokmlkpkojbjevxunj
+- [ ] 👤 **Cloudflare Pages** (web app host කරන තැන, තියෙනවා)
+- [ ] 👤 **Firebase** (නොමිලේ) → https://console.firebase.google.com (Google account එකෙන්)
+- [ ] 👤 **Google Play Console** → https://play.google.com/console ($25 එක පාරයි, ID verify කරන්න වෙනවා. දවස් කීපයක් යන්න පුළුවන්, ඒ නිසා දැන්ම පටන් ගන්න)
 
-## ෆයිල් දෙක
-- **`admin.html`**: admin panel එක (login, Profiles, Posts & Videos, back button). GitHub repo එකේ root එකේ තියෙන්න ඕන.
-- **`migration-admin.sql`**: Supabase database එකට admin අයිතිය සහ permissions දෙන SQL. එක පාරක් run කරන්න.
+---
 
-## පළමු වරට හදන විදිය
-1. Supabase dashboard → **Authentication → Users → Add user → Create new user**. Admin email + password දාලා **Auto confirm user** ටික් කරලා create කරන්න. (App එකේ ගිණුමත් පාවිච්චි කරන්න පුළුවන්, ඒ සඳහා app එකෙන් sign up වෙලා තියෙන්න ඕන.)
-2. `migration-admin.sql` ෆයිල් එකේ අන්තිමට තියෙන email එක admin email එකට වෙනස් කරන්න.
-3. Supabase SQL editor එකේ migration එක paste කරලා **Run** කරන්න.
-4. `admin.html` GitHub එකට upload/replace කරන්න. Vercel deploy වෙන්න මිනිත්තුවක් ඉඳලා page එක open කරන්න.
+## Phase 1 — දැනට හදපු web fixes deploy කරන්න
 
-## Admin එකක් එකතු කරන්න / අයින් කරන්න
-ගිණුම admin කරන්න (email එක වෙනස් කරලා run කරන්න):
-```sql
-insert into public.admins (user_id)
-select id from auth.users where email = 'EMAIL_HERE'
-on conflict do nothing;
-```
-Admin අයින් කරන්න:
-```sql
-delete from public.admins
-where user_id = (select id from auth.users where email = 'EMAIL_HERE');
-```
-Admin ලිස්ට් එක බලන්න:
-```sql
-select a.user_id, u.email from public.admins a join auth.users u on u.id = a.user_id;
-```
+- [ ] 👤 `circle-fixed.zip` extract කරලා files GitHub repo එකට replace කරන්න (`app.js`, `reels.js`, `reels.css`, `index.html`, `sw.js`, `migration-reel-thumb-v35.sql`)
+- [ ] 👤 Supabase **SQL Editor** එකේ run කරන්න: https://supabase.com/dashboard/project/swmokmlkpkojbjevxunj/sql/new
+  ```sql
+  alter table public.reels add column if not exists thumb_url text;
+  ```
+- [ ] 👤 Cloudflare deploy වුණාට පස්සේ phone එකෙන් test: friends list, Back button, reel cover frame
 
-## පිටුවේ තියෙන දේවල්
-- **Login:** admin email + password. Login වුණාට admin නැත්නම් "Not allowed" පෙන්වනවා.
-- **Home:** බටන් 2ක්:
-  - **👤 Profiles:** හැම user ගේ ලිස්ට් එක, නම අනුව search කරන්න පුළුවන්. Card එක ටච් කලාම user page එක open වෙනවා.
-  - **🎬 Posts & Videos:** හැම post සහ reel එකම අලුත්ම එකින් පෙන්වනවා. Delete බටන් තියෙනවා.
-- **User page:** බටන් 2ක්:
-  - **Posts & reels:** ඒ user ගේ posts සහ reels.
-  - **Delete all their posts:** ඒ user ගේ posts ඔක්කොම delete කරනවා (confirm popup එකක් එනවා).
-- **Back බටන්:** admin panel එකෙන් එළියට යන්නේ නෑ. User page → Profiles → Home ආකාරයට යනවා.
+---
 
-## Permissions (SQL එකෙන් දෙන දේවල්)
-- Admin ට බලන්න පුළුවන්: profiles, posts, reels, comments, reel_comments, friendships.
-- Admin ට delete කරන්න පුළුවන්: posts, reels, comments, reel_comments.
-- **Admin ට private chat messages බලන්න බෑ.** ඒක ඉස්සරහට දාන්නෙත් නෑ.
+## Phase 2 — Package ID එක තීරණය කරන්න (වෙනස් කරන්න බෑ!)
 
-## වෙනස්කම් කරන විදිය
-- **බටන් නම් වෙනස් කරන්න:** `admin.html` එකේ `👤 Profiles` සහ `🎬 Posts &amp; Videos` කියන text එක සොයලා වෙනස් කරන්න.
-- **Version එක:** වෙනස්කම් කරලා zip එකක් හදද්දී නම `circle-admin-5.zip` වගේ අංකය වැඩි කරන්න.
-- **පරණ page එකම පෙන්නනවා නම්:** URL එකේ `?v=5` වගේ අංකයක් දාලා open කරන්න (උදා: `admin.html?v=5`).
+- [ ] 👤 App එකේ **Package ID** එකක් තෝරන්න. උදා: `com.yourname.circle`
+  - Play Store එකට upload කළාම ඒක **ආයේ වෙනස් කරන්න බෑ**.
+  - Firebase, Android project, Play Console තුනේම **එකම** ID එක පාවිච්චි වෙනවා.
+- [ ] 👤 App name එකත් තීරණය කරන්න (උදා "Circle")
+- [ ] 👤 Package ID එක Claude ට එවන්න
 
-## ප්‍රශ්න සහ විසඳුම්
-- **"Invalid login credentials":** email හෝ password වැරදියි, නැත්නම් ඒ email එකෙන් account එකක් නැහැ. App එකෙන් sign up වෙන්න, නැත්නම් Supabase dashboard එකෙන් password එක වෙනස් කරන්න.
-- **"Not allowed":** login වෙලා තියෙන account එක admins table එකේ නැහැ. SQL එකේ admin insert එක ආයෙ run කරන්න.
-- **Stats/tabs පෙනුනා නම්:** admin.html අලුත් version එක GitHub එකේ නැහැ. ආයෙ upload කරලා `?v=` අංකය දාලා බලන්න.
-- **Posts/reels load වෙන්නේ නැත්නම්:** Supabase SQL editor එකේ `migration-admin.sql` හරියට run වුණාද බලන්න. Error message එක තියෙනවා නම් ඒක copy කරලා දාන්න.
+---
 
-## ආරක්ෂාව
-- **Secret keys** (service role / secret key) කිසිම විටෙක මේ repo එකේ දාන්න එපා. Admin page එක publishable key එකෙන් විතරක් වැඩ කරනවා.
-- Admin වීම server එකේ (database RLS) check වෙනවා. Page එකේ check එක විතරක් නෙවෙයි.
+## Phase 3 — Firebase setup (push notifications ඕන නිසා)
+
+1. [ ] 👤 Firebase console → **Add project** (Google Analytics අවශ්‍ය නෑ)
+2. [ ] 👤 Project එක ඇතුලේ **Add app → Android**
+   - Package name = Phase 2 එකේ ID එක
+   - **`google-services.json`** download කරලා තියාගන්න (මේක Claude ට එවන්න, ගැටළුවක් නෑ)
+3. [ ] 👤 Firebase → ⚙️ Project settings → **Service accounts** → **Generate new private key**
+   - ලැබෙන `.json` file එක **රහසක්**. Chat එකේ paste කරන්න එපා, GitHub එකට දාන්නත් එපා.
+4. [ ] 👤 ඒ JSON එකේ content එක Supabase **secret** එකක් විදියට දාන්න:
+   - Supabase dashboard → **Edge Functions → Secrets** → නම `FIREBASE_SERVICE_ACCOUNT`, value = JSON file එකේ මුළු content එක
+5. [ ] 👤 Firebase → Project settings → **Cloud Messaging** තුල **Firebase Cloud Messaging API (V1)** enabled කියලා බලන්න
+
+---
+
+## Phase 4 — Native app හදන කොටස (🤖 Claude ලියනවා)
+
+Claude දෙන files:
+
+- 🤖 **`android-app/`** Capacitor project එක (දැනට තියෙන Circle web app එක ඇතුලේ load වෙනවා, calls / chat / reels වැඩ කරන්නේ කලින් වගේම)
+- 🤖 **Native incoming-call code**: FCM push එක ආවම ringtone + vibrate, lock screen එකේ **full-screen Accept / Decline** screen එක; Accept කළාම app එක call එකට open වෙනවා
+- 🤖 **Supabase SQL (`migration-fcm-v36.sql`)**: ෆෝන් එකේ FCM token එක save කරන table එක
+- 🤖 **`send-push` Edge Function update**: කෝල් එකක් එන වෙලාවේ FCM **high-priority** message එකක් යවනවා
+- 🤖 **Web app update (`app.js`/`calls.js`)**: token register කරන්න, notification එකෙන් එන callId එකට call එකට join වෙන්න
+- 🤖 **GitHub Actions workflow**: PC නැතුව GitHub එකේම APK (test) සහ AAB (Play Store) build කරනවා
+- 🤖 **`privacy.html`**, **`terms.html`**, **delete account** page + app එක ඇතුලේ "Delete account" බොත්තම (Play Store එකට අනිවාර්යයි)
+
+ඔයා කරන්න ඕන:
+
+- [ ] 👤 Claude දෙන files GitHub repo එකට දාන්න (`android-app/` folder එකත්)
+- [ ] 👤 `google-services.json` එක `android-app/android/app/` ඇතුලට දාන්න (Claude කියලා දෙනවා)
+- [ ] 👤 Supabase SQL Editor එකේ `migration-fcm-v36.sql` run කරන්න
+- [ ] 👤 Supabase Edge Function `send-push` එක අලුත් code එකෙන් update කරන්න (deploy කරන ක්‍රමය Claude කියලා දෙනවා)
+
+---
+
+## Phase 5 — Signing key (APK/AAB sign කරන්න)
+
+- [ ] 👤 **Keystore** එකක් හදන්න (Claude command / workflow එක දෙනවා)
+- [ ] 👤 GitHub repo → Settings → **Secrets and variables → Actions** තුල මේ secrets දාන්න:
+  - `KEYSTORE_BASE64`
+  - `KEYSTORE_PASSWORD`
+  - `KEY_ALIAS`
+  - `KEY_PASSWORD`
+- [ ] 👤 **Keystore file එකයි passwords ටිකයි** ආරක්ෂිතව backup කරන්න (Google Drive private + වෙනත් තැනක්). නැති වුණොත් අනාගතයේ update දාන්න බෑ.
+
+---
+
+## Phase 6 — Build කරලා test කරන්න
+
+- [ ] 👤 GitHub → **Actions** tab → build workflow එක run කරන්න
+- [ ] 👤 ඉවර වුණාම **APK artifact** එක ෆෝන් එකට download කරලා install කරන්න (Unknown sources allow කරන්න)
+- [ ] 👤 Build එක fail වුණොත් error log එක Claude ට එවන්න
+
+**Test checklist (ෆෝන් දෙකකින්):**
+
+- [ ] Login, posts, reels, chat වැඩ කරනවා
+- [ ] App එක open, call කළාම ring වෙනවා
+- [ ] App එක background, call කළාම ring වෙනවා
+- [ ] ෆෝන් එක **lock**, call කළාම **full-screen call screen** එක එනවා (Accept / Decline)
+- [ ] App එක **swipe කරලා වහලා** call කළාම ring වෙනවා
+- [ ] Accept කළාම voice / video call එක connect වෙනවා
+- [ ] Notification, camera, mic permissions ඉල්ලනවා
+- [ ] Battery saver on කරලා (Xiaomi / Oppo / Samsung) call එනවද බලන්න
+
+---
+
+## Phase 7 — Play Console setup
+
+1. [ ] 👤 **Create app** (නම, language, free)
+2. [ ] 👤 **Privacy Policy URL** (Phase 4 එකේ `privacy.html` page එකේ ලින්ක් එක)
+3. [ ] 👤 **Data safety** form එක පුරවන්න (Claude විස්තර ලියලා දෙනවා)
+4. [ ] 👤 **Content rating** questionnaire (social app / user-generated content)
+5. [ ] 👤 **App content** declarations:
+   - User-generated content (report / block / moderation තියෙනවා කියලා)
+   - **Account deletion** URL + app එක ඇතුලේ delete option
+   - Permissions: camera, microphone, notifications
+   - **Full-screen intent** declaration (calling app එකක් විදියට)
+6. [ ] 👤 **Store listing**: විස්තරය, **icon 512×512**, **feature graphic 1024×500**, phone **screenshots** (අඩුම තරමින් 2)
+7. [ ] 👤 **AAB** file එක upload කරන්න (Actions build එකෙන් ලැබෙන `.aab`)
+8. [ ] 👤 Play Console එකේ **App signing SHA-256** එකත් Firebase project එකට add කරන්න (Project settings → Android app → Add fingerprint)
+
+---
+
+## Phase 8 — Testing track → Production
+
+- [ ] 👤 **Closed testing** track එකට release එක දාන්න
+- [ ] 👤 Testers add කරන්න (email list). **Personal developer account** එකක නම් production එකට යන්න කලින් අවම testers ගණනක් අවම දවස් ගණනක් closed testing කරන්න ඕන (සාමාන්‍යයෙන් **testers 12ක් × දවස් 14ක්**). ඒ නීතිය Play Console එකේ දැන් කොහොමද කියලා බලන්න, වෙනස් වෙලා තියෙන්න පුළුවන්.
+- [ ] 👤 Testing කාලය ඉවර වුණාම **Apply for production** → **Production** release එකක් හදන්න
+- [ ] 👤 Google review එක (දවස් කීපයක්) ඉවර වෙනකම් ඉන්න
+
+---
+
+## Phase 9 — Play එක reject කරන්න පුළුවන් දේවල්
+
+- **"Minimum functionality / web wrapper"**: Website එකක් විතරක් ඇතුලේ දාපු apps reject කරන්න පුළුවන්. ඔයාගේ app එකේ native push + native call screen තියෙන එක මේකට උදව් වෙනවා.
+- **Account deletion** නැතිනම් reject.
+- **Privacy policy / data safety** වැරදි නම් reject.
+- **Report / block / moderation** (social app) නැතිනම් reject.
+- **Full-screen intent** declaration නැතිනම් call screen එක lock screen එකේ පෙන්නන්න බෑ.
+
+---
+
+## Phase 10 — Release එකෙන් පස්සේ
+
+- **Web code update**: App එක ඇතුලේ web app එක load වෙන්නේ Cloudflare site එකෙන් නම්, GitHub එකට push කරාම Play update එකක් නැතුව users ලට update එක ඒවි.
+- **Native code update** (call ring, permissions වගේ): අලුත් AAB එකක් හදලා Play එකට upload කරන්න ඕන, version code එක වැඩි කරලා.
+- Keystore එක නැති නොකරගන්න.
+
+---
+
+## සාරාංශය (පිලිවෙල)
+
+1. Phase 0 → Accounts (Play Console එක දැන්ම පටන් ගන්න)
+2. Phase 1 → web fixes deploy + SQL
+3. Phase 2 → Package ID තීරණය කරලා Claude ට කියන්න
+4. Phase 3 → Firebase (`google-services.json` + service account → Supabase secret)
+5. Phase 4 → Claude native code ලියනවා, ඔයා GitHub එකට දානවා, SQL / function deploy
+6. Phase 5 → Signing key + GitHub secrets
+7. Phase 6 → Build, ෆෝන් දෙකකින් test (call ring ඇතුළුව)
+8. Phase 7 → Play Console forms + AAB upload
+9. Phase 8 → Closed testing → Production
