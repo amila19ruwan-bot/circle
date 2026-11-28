@@ -1,6 +1,59 @@
-/* Circle native push (Android APK only).
-   Gets the Firebase (FCM) token and saves it in Supabase so the server can notify this phone
-   even when the app is closed. Does nothing in a normal browser. */
+/* Circle native helpers (Android APK only). Does nothing in a normal browser.
+   1) Back button: remembers in-app page changes so Android Back goes to the previous page.
+   2) Pull-to-refresh: tells the APK whether the scrolled area is at its top.
+   3) Push: gets the Firebase (FCM) token and saves it in Supabase. */
+
+/* ---------- 1 + 2: back button and scroll position ---------- */
+(function () {
+  const cap = window.Capacitor;
+  if (!cap || !cap.isNativePlatform || !cap.isNativePlatform()) return;
+
+  /* Back button: every go(...) call adds a browser-history entry */
+  if (typeof window.go === "function") {
+    const origGo = window.go;
+    let last = JSON.stringify(["home"]);
+    let popping = false;
+    try { history.replaceState({ g: ["home"] }, ""); } catch (e) {}
+
+    window.go = function () {
+      const args = Array.prototype.slice.call(arguments);
+      const r = origGo.apply(this, args);
+      if (!popping) {
+        const k = JSON.stringify(args);
+        if (k !== last) {
+          last = k;
+          try { history.pushState({ g: args }, ""); } catch (e) {}
+        }
+      }
+      return r;
+    };
+
+    window.addEventListener("popstate", function (e) {
+      const g = (e.state && e.state.g) || ["home"];
+      popping = true;
+      last = JSON.stringify(g);
+      try { origGo.apply(null, g); } catch (err) {}
+      popping = false;
+    });
+  }
+
+  /* Pull-to-refresh: report if the area under the finger is scrolled down */
+  let target = null;
+  function atTop(el) {
+    for (; el && el !== document.documentElement; el = el.parentElement) {
+      if (el.scrollTop > 0) return false;
+    }
+    const se = document.scrollingElement;
+    return !(se && se.scrollTop > 0);
+  }
+  function report() {
+    try { if (window.CircleNative) window.CircleNative.setTop(atTop(target)); } catch (e) {}
+  }
+  document.addEventListener("touchstart", function (e) { target = e.target; report(); }, { passive: true, capture: true });
+  document.addEventListener("scroll", report, { passive: true, capture: true });
+})();
+
+/* ---------- 3: push notifications ---------- */
 (function () {
   const cap = window.Capacitor;
   if (!cap || !cap.isNativePlatform || !cap.isNativePlatform()) return;
