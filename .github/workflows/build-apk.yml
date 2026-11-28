@@ -55,6 +55,41 @@ jobs:
           sed -i 's#</manifest>#    <uses-permission android:name="android.permission.CAMERA" />\n    <uses-permission android:name="android.permission.RECORD_AUDIO" />\n    <uses-permission android:name="android.permission.MODIFY_AUDIO_SETTINGS" />\n    <uses-permission android:name="android.permission.POST_NOTIFICATIONS" />\n</manifest>#' AndroidManifest.xml
           cat AndroidManifest.xml
 
+      - name: Add pull-to-refresh
+        run: |
+          cd app/android/app
+          sed -i '0,/dependencies {/s//dependencies {\n    implementation "androidx.swiperefreshlayout:swiperefreshlayout:1.1.0"/' build.gradle
+          cat > src/main/java/com/circle/test/MainActivity.java <<'JAVA'
+          package com.circle.test;
+
+          import android.view.ViewGroup;
+          import android.webkit.WebView;
+          import androidx.swiperefreshlayout.widget.SwipeRefreshLayout;
+          import com.getcapacitor.BridgeActivity;
+
+          public class MainActivity extends BridgeActivity {
+            @Override
+            public void onStart() {
+              super.onStart();
+              final WebView webView = getBridge().getWebView();
+              if (webView.getParent() instanceof SwipeRefreshLayout) return;
+              ViewGroup parent = (ViewGroup) webView.getParent();
+              int index = parent.indexOfChild(webView);
+              ViewGroup.LayoutParams lp = webView.getLayoutParams();
+              parent.removeView(webView);
+              final SwipeRefreshLayout swipe = new SwipeRefreshLayout(this);
+              swipe.addView(webView, new ViewGroup.LayoutParams(
+                  ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.MATCH_PARENT));
+              parent.addView(swipe, index, lp);
+              swipe.setOnChildScrollUpCallback((p, c) -> webView.getScrollY() > 0);
+              swipe.setOnRefreshListener(() -> {
+                webView.reload();
+                swipe.postDelayed(() -> swipe.setRefreshing(false), 1000);
+              });
+            }
+          }
+          JAVA
+
       - name: Set app icon from site
         continue-on-error: true
         run: |
