@@ -454,6 +454,7 @@ async function renderFriends(){
   const [{ data: people }, { data: fr }] = await Promise.all([
     sb.from("profiles").select("id,name,bio,avatar_url").neq("id", me.id).order("name"),
     sb.from("friendships").select("id,requester,addressee,status")
+      .or(`requester.eq.${me.id},addressee.eq.${me.id}`)
   ]);
   const byId = {}; (people || []).forEach(p => { byId[p.id] = p; nameCache[p.id] = p.name; });
   const rel = {}; (fr || []).forEach(f => rel[f.requester === me.id ? f.addressee : f.requester] = f);
@@ -548,8 +549,9 @@ async function renderProfile(id){
     if (!pr) { $("main").innerHTML = `<button class="back" onclick="goBack()">‹ Back</button><div class="empty">${error ? esc(error.message) : "Profile not found."}</div>`; return; }
     u = pr; fr = f; u._posts = pcount || 0; nameCache[id] = pr.name;
   } else {
-    const [{ count: pcount }, { data: fa }] = await Promise.all([pc, sb.from("friendships").select("requester,addressee").eq("status", "accepted")]);
-    const ids = (fa || []).map(f => f.requester === me.id ? f.addressee : f.requester);
+    const [{ count: pcount }, { data: fa }] = await Promise.all([pc, sb.from("friendships").select("requester,addressee").eq("status", "accepted")
+      .or(`requester.eq.${me.id},addressee.eq.${me.id}`)]);
+    const ids = [...new Set((fa || []).map(f => f.requester === me.id ? f.addressee : f.requester))];
     fcount = ids.length;
     if (ids.length){ const { data: pp } = await sb.from("profiles").select("id,name,avatar_url").in("id", ids.slice(0, 6)); fppl = pp || []; }
     if (!(cur && cur.t === "me")) return;
@@ -849,6 +851,7 @@ async function renderInbox(){
   const [{ data, error }, { data: fa }] = await Promise.all([
     sb.from("messages").select("*").or(`sender.eq.${me.id},receiver.eq.${me.id}`).order("created_at", { ascending: false }).limit(300),
     sb.from("friendships").select("requester,addressee").eq("status", "accepted")
+      .or(`requester.eq.${me.id},addressee.eq.${me.id}`)
   ]);
   if (!(cur && cur.t === "inbox")) return;
   if (error){ $("main").innerHTML = `<div class="empty">${esc(msgErr(error.message))}</div>`; return; }
