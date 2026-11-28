@@ -7,7 +7,7 @@ permissions:
   contents: write
 
 env:
-  SITE_URL: https://circle-indol-tau.vercel.app
+  SITE_URL: https://circle-amila9.vercel.app
   APP_ID: com.circle.test
   APP_NAME: Circle
 
@@ -32,51 +32,48 @@ jobs:
           npm init -y
           npm i @capacitor/core@6 @capacitor/cli@6 @capacitor/android@6
           mkdir www
-          cat > www/index.html <<EOF
-          <!doctype html><meta name="viewport" content="width=device-width,initial-scale=1">
-          <body style="font-family:sans-serif;text-align:center;padding:40px">
-          <h2>Circle</h2><p>Could not reach the server. Check your internet and reopen the app.</p></body>
-          EOF
+          echo '<!doctype html><html><body>Loading...</body></html>' > www/index.html
+          npx cap init "$APP_NAME" "$APP_ID" --web-dir=www
+          rm -f capacitor.config.ts capacitor.config.json
           cat > capacitor.config.json <<EOF
           {
             "appId": "$APP_ID",
             "appName": "$APP_NAME",
             "webDir": "www",
-            "server": { "url": "$SITE_URL", "androidScheme": "https" },
-            "android": { "allowMixedContent": false }
+            "server": {
+              "url": "$SITE_URL",
+              "androidScheme": "https"
+            }
           }
           EOF
           npx cap add android
+          npx cap sync android
 
-      - name: Permissions (camera, mic, notifications)
-        working-directory: app
+      - name: Add camera and mic permissions
         run: |
-          M=android/app/src/main/AndroidManifest.xml
-          sed -i 's#<application#<uses-permission android:name="android.permission.CAMERA"/>\n    <uses-permission android:name="android.permission.RECORD_AUDIO"/>\n    <uses-permission android:name="android.permission.MODIFY_AUDIO_SETTINGS"/>\n    <uses-permission android:name="android.permission.POST_NOTIFICATIONS"/>\n    <uses-feature android:name="android.hardware.camera" android:required="false"/>\n    <uses-feature android:name="android.hardware.microphone" android:required="false"/>\n    <application#' $M
-          grep -n "uses-permission" $M
+          cd app/android/app/src/main
+          sed -i 's#</manifest>#    <uses-permission android:name="android.permission.CAMERA" />\n    <uses-permission android:name="android.permission.RECORD_AUDIO" />\n    <uses-permission android:name="android.permission.MODIFY_AUDIO_SETTINGS" />\n    <uses-permission android:name="android.permission.POST_NOTIFICATIONS" />\n</manifest>#' AndroidManifest.xml
+          cat AndroidManifest.xml
 
-      - name: App icon (taken from the live site)
-        working-directory: app
+      - name: Set app icon from site
+        continue-on-error: true
         run: |
-          sudo apt-get update -y && sudo apt-get install -y imagemagick
-          curl -fsSL "$SITE_URL/icon-512.png" -o icon.png || true
-          if [ -s icon.png ]; then
-            R=android/app/src/main/res
-            rm -rf $R/mipmap-anydpi-v26
-            for spec in mdpi:48 hdpi:72 xhdpi:96 xxhdpi:144 xxxhdpi:192; do
-              d=${spec%%:*}; s=${spec##*:}
-              convert icon.png -resize ${s}x${s} $R/mipmap-$d/ic_launcher.png
-              convert icon.png -resize ${s}x${s} $R/mipmap-$d/ic_launcher_round.png
-            done
-          fi
+          cd app/android/app/src/main/res
+          curl -fsSL "$SITE_URL/icon-512.png" -o /tmp/icon.png
+          rm -rf mipmap-anydpi-v26
+          for d in mipmap-mdpi mipmap-hdpi mipmap-xhdpi mipmap-xxhdpi mipmap-xxxhdpi; do
+            cp /tmp/icon.png $d/ic_launcher.png
+            cp /tmp/icon.png $d/ic_launcher_round.png
+            cp /tmp/icon.png $d/ic_launcher_foreground.png
+          done
 
-      - name: Build APK
-        working-directory: app/android
+      - name: Build debug APK
         run: |
+          cd app/android
           chmod +x gradlew
           ./gradlew assembleDebug --no-daemon
 
-      - name: Rename APK
+      - name: Copy APK
         run: cp app/android/app/build/outputs/apk/debug/app-debug.apk Circle.apk
 
       - name: Publish APK to Releases
@@ -85,8 +82,3 @@ jobs:
           tag_name: apk-${{ github.run_number }}
           name: Circle APK ${{ github.run_number }}
           files: Circle.apk
-
-      - uses: actions/upload-artifact@v4
-        with:
-          name: Circle-apk
-          path: Circle.apk
