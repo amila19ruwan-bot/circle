@@ -7,7 +7,7 @@ permissions:
   contents: write
 
 env:
-  SITE_URL: https://circle-amila9.vercel.app
+  SITE_URL: https://circle-indol-tau.vercel.app
   APP_ID: com.circle.test
   APP_NAME: Circle
 
