@@ -1,7 +1,7 @@
 /* Circle v27: Reels (short videos). Needs migration-reels-v23.sql (+ migration-reels-v27.sql for emoji reactions) */
 const REEL_BUCKET = "reels";
 const REEL_MAX_MB = 30, REEL_MAX_SEC = 15, REEL_PICK_MB = 300, REEL_DIRECT_MB = 8;
-let reelObs = null, homeObs = null, reelMuted = true, reelList = [], homeReels = [], reelFile = null, reelUrl = null;
+let reelObs = null, homeObs = null, reelMuted = true, reelList = [], homeReels = [], reelFile = null, reelUrl = null, reelDur = 0, reelThumbT = null, reelNoThumb = false;
 let reelStart = null, reelForce = null, reelNoRx = false, reelRxT = null;
 let reelAuto = true;
 try { reelAuto = localStorage.getItem("circle_reel_auto") !== "0"; } catch (e) {}
@@ -40,10 +40,11 @@ async function playReelVideo(v){
 
 /* ---------- data ---------- */
 async function fetchReels(limit){
-  for (let k = 0; k < 2; k++){
+  for (let k = 0; k < 3; k++){
     const res = await sb.from("reels")
-      .select("id,user_id,video_url,caption,created_at,profiles!user_id(name,avatar_url),reel_likes(user_id" + (reelNoRx ? "" : ",reaction") + "),reel_comments(id)")
+      .select("id,user_id,video_url," + (reelNoThumb ? "" : "thumb_url,") + "caption,created_at,profiles!user_id(name,avatar_url),reel_likes(user_id" + (reelNoRx ? "" : ",reaction") + "),reel_comments(id)")
       .order("created_at", { ascending: false }).limit(limit);
+    if (res.error && !reelNoThumb && /thumb_url/i.test(res.error.message)){ reelNoThumb = true; continue; }
     if (res.error && !reelNoRx && /reaction/i.test(res.error.message)){ reelNoRx = true; continue; }
     return res;
   }
@@ -221,7 +222,7 @@ function reelHtml(r){
   const n = r.profiles ? r.profiles.name : "Someone", av = r.profiles ? r.profiles.avatar_url : null;
   const cm = (r.reel_comments || []).length;
   return `<section class="rl" id="rl-${r.id}" data-id="${r.id}" data-src="${esc(r.video_url)}">
-    <video loop playsinline preload="none" onclick="toggleReelPlay(this)"></video>
+    <video loop playsinline preload="none"${r.thumb_url ? ` poster="${esc(r.thumb_url)}"` : ""} onclick="toggleReelPlay(this)"></video>
     <div class="rl-pause">${IC_PLAY}</div>
     <div class="rl-side">
       ${rlLikeBtn(r)}
@@ -258,7 +259,11 @@ async function deleteReel(id){
   const { error } = await sb.from("reels").delete().eq("id", id);
   if (error) return alert(error.message);
   const k = "/" + REEL_BUCKET + "/", i = r.video_url.indexOf(k);
-  if (i > -1) sb.storage.from(REEL_BUCKET).remove([decodeURIComponent(r.video_url.slice(i + k.length))]).then(() => {}, () => {});
+  const rm = [];
+  if (i > -1) rm.push(decodeURIComponent(r.video_url.slice(i + k.length)));
+  const ti = r.thumb_url ? r.thumb_url.indexOf(k) : -1;
+  if (ti > -1) rm.push(decodeURIComponent(r.thumb_url.slice(ti + k.length)));
+  if (rm.length) sb.storage.from(REEL_BUCKET).remove(rm).then(() => {}, () => {});
   reelList = reelList.filter(x => x.id !== id);
   const s = $("rl-" + id); if (s){ if (reelObs) reelObs.unobserve(s); s.remove(); }
   if (!reelList.length && $("reels")) $("reels").innerHTML = `<div class="rl-msg">No reels yet.<br>Tap ＋ to post the first one!</div>`;
@@ -339,10 +344,40 @@ function pickReel(input){
     if (reelUrl) URL.revokeObjectURL(reelUrl);
     reelUrl = url;
     const p = $("rn-prev");
-    if (p) p.innerHTML = `<div class="prev rn-v"><video src="${url}" controls playsinline muted></video><button onclick="reelFile=null;$('rn-prev').innerHTML=''" aria-label="Remove video">✕</button></div>`;
+    reelDur = isFinite(probe.duration) ? probe.duration : 0; reelThumbT = null;
+    if (p) p.innerHTML = `<div class="prev rn-v"><video id="rn-vid" src="${url}" controls playsinline muted></video><button onclick="clearReelPick()" aria-label="Remove video">✕</button></div>
+      ${reelDur ? `<div class="rn-cover"><div class="rn-ch"><b>🖼️ Cover frame</b><small id="rn-tt">Auto (first frame)</small></div><input type="range" id="rn-sl" min="0" max="${reelDur.toFixed(2)}" step="0.05" value="0" oninput="reelSeek(this.value)" aria-label="Choose cover frame"><button class="btn soft" onclick="reelUseNow()">📍 Use the frame I paused on</button></div>` : ""}`;
   };
   probe.onerror = () => { URL.revokeObjectURL(url); alert("Could not read this video. Try another one."); };
   probe.src = url;
+}
+function clearReelPick(){ reelFile = null; reelThumbT = null; const p = $("rn-prev"); if (p) p.innerHTML = ""; }
+function reelSeek(v){
+  const t = Math.max(0, Math.min(+v || 0, reelDur));
+  reelThumbT = t;
+  const vid = $("rn-vid"); if (vid){ try { vid.pause(); vid.currentTime = t; } catch (e) {} }
+  const tt = $("rn-tt"); if (tt) tt.textContent = "Cover at " + t.toFixed(1) + " s";
+}
+function reelUseNow(){
+  const vid = $("rn-vid"); if (!vid) return;
+  try { vid.pause(); } catch (e) {}
+  const sl = $("rn-sl"); if (sl) sl.value = vid.currentTime;
+  reelSeek(vid.currentTime);
+}
+async function grabReelFrame(url, t){
+  const v = document.createElement("video");
+  v.muted = true; v.playsInline = true; v.preload = "auto"; v.src = url;
+  await new Promise((ok, no) => { v.onloadeddata = ok; v.onerror = () => no(new Error("read")); setTimeout(() => no(new Error("timeout")), 8000); });
+  const target = Math.max(0, Math.min(t, (v.duration || t) - 0.05));
+  if (Math.abs(v.currentTime - target) > 0.02){
+    await new Promise(ok => { v.onseeked = ok; v.currentTime = target; setTimeout(ok, 3000); });
+  }
+  const w0 = v.videoWidth, h0 = v.videoHeight;
+  if (!w0 || !h0) throw new Error("size");
+  const sc = Math.min(1, 720 / Math.min(w0, h0));
+  const cv = document.createElement("canvas"); cv.width = Math.round(w0 * sc); cv.height = Math.round(h0 * sc);
+  cv.getContext("2d").drawImage(v, 0, 0, cv.width, cv.height);
+  return await new Promise(ok => cv.toBlob(b => ok(b), "image/jpeg", 0.85));
 }
 /* shrink a video on the phone: re-record it (max 720p short side, 1.5 Mbps) with canvas + MediaRecorder */
 function reelMime(){
@@ -426,9 +461,28 @@ async function submitReel(){
   if (ue){ reset(); return alert("Upload failed: " + ue.message); }
   const video_url = sb.storage.from(REEL_BUCKET).getPublicUrl(path).data.publicUrl;
   const caption = ($("rn-cap") ? $("rn-cap").value : "").trim() || null;
-  const { error } = await sb.from("reels").insert({ user_id: me.id, video_url, caption });
-  if (error){ sb.storage.from(REEL_BUCKET).remove([path]); reset(); return alert(error.message); }
-  reelFile = null;
+  let thumb_url = null, tpath = null;
+  if (reelThumbT !== null && !reelNoThumb && reelUrl){
+    btn.textContent = "Saving cover…";
+    try {
+      const tb = await grabReelFrame(reelUrl, reelThumbT);
+      if (tb && tb.size){
+        tpath = `${me.id}/${Date.now()}-cover.jpg`;
+        const { error: te } = await sb.storage.from(REEL_BUCKET).upload(tpath, tb, { contentType: "image/jpeg", cacheControl: "31536000" });
+        if (te) tpath = null; else thumb_url = sb.storage.from(REEL_BUCKET).getPublicUrl(tpath).data.publicUrl;
+      }
+    } catch (e) { tpath = null; }
+  }
+  const row = { user_id: me.id, video_url, caption }; if (thumb_url) row.thumb_url = thumb_url;
+  let { error } = await sb.from("reels").insert(row);
+  if (error && row.thumb_url && /thumb_url/i.test(error.message)){
+    reelNoThumb = true; delete row.thumb_url;
+    if (tpath) sb.storage.from(REEL_BUCKET).remove([tpath]);
+    ({ error } = await sb.from("reels").insert(row));
+    if (!error) soon("Posted, but the cover needs the thumb SQL migration");
+  }
+  if (error){ sb.storage.from(REEL_BUCKET).remove(tpath ? [path, tpath] : [path]); reset(); return alert(error.message); }
+  reelFile = null; reelThumbT = null;
   navTo({ t: "reels" }, true);
 }
 
@@ -443,7 +497,7 @@ function homeReelHtml(r){
   const cm = (r.reel_comments || []).length;
   return `<div class="card hr-card" id="hr-${r.id}"><div class="row"><div class="ring${r.user_id === me.id ? " me" : ""}">${avatar(n, false, av, r.user_id)}</div><div style="flex:1;min-width:0"><div class="name lnk" onclick="openProfile('${r.user_id}')">${esc(n)}${VERIFIED.includes(String(n || "").toLowerCase()) ? ICON_VERIFIED : ""}</div><div class="meta">${ago(r.created_at)} · posted a reel</div></div><button class="hr-menu" onclick="openReelMenu(${r.id})" aria-label="Reel settings">•••</button></div>
     ${r.caption ? `<p class="body">${esc(r.caption)}</p>` : ""}
-    <div class="hr-w paused"><video class="hr-v" src="${esc(r.video_url)}#t=0.1" loop playsinline muted preload="metadata" onclick="openReelFull(${r.id})"></video>
+    <div class="hr-w paused"><video class="hr-v" src="${esc(r.video_url)}#t=0.1"${r.thumb_url ? ` poster="${esc(r.thumb_url)}"` : ""} loop playsinline muted preload="metadata" onclick="openReelFull(${r.id})"></video>
       <div class="hr-pl">${IC_PLAY}</div>
       <button class="hr-snd" data-snd onclick="toggleReelSound()" aria-label="Sound">${reelMuted ? IC_MUT : IC_SND}</button></div>
     <div class="react" id="hr-react-${r.id}">${hrReactHtml(r)}</div>

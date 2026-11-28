@@ -151,8 +151,14 @@ async function boot(user){
   enablePush(false).catch(() => {});
   startPresence();
   blocksP = loadBlocks(); beat();
-  const st = history.state && history.state.t ? history.state : { t: "home", n: 0 };
-  try { history.replaceState(st, ""); } catch (e) {}
+  let st = history.state && history.state.t ? history.state : null;
+  if (!st){ /* fresh start: bottom "guard" entry + home entry above it, so Back on Home never exits by accident */
+    st = { t: "home", n: 0 };
+    try { history.replaceState({ t: "home", n: 0, guard: 1 }, ""); history.pushState(st, ""); } catch (e) {}
+  } else if (st.guard){
+    st = { t: "home", n: 0 };
+    try { history.pushState(st, ""); } catch (e) {}
+  } else { try { history.replaceState(st, ""); } catch (e) {} }
   show(st);
 }
 function updateHeader(){ $("h-av").innerHTML = avatar(me.name, false, me.avatar_url, me.id); }
@@ -237,11 +243,31 @@ function openPost(id){ navTo({ t: "post", id }); }
 function openChat(id){ navTo({ t: "chat", id }, !!(cur && cur.t === "chat" && cur.id === id)); }
 function goBack(){ if (history.state && history.state.n > 0) history.back(); else navTo({ t: "home" }, true); }
 function rerender(){ if (cur) show(cur, true); }
+/* Back on the Home feed: 1) close the keyboard / stop typing, 2) scroll the feed back to the top, 3) then really go back */
+function backHold(){
+  if (!cur || cur.t !== "home") return false;
+  const a = document.activeElement;
+  if (a && /^(TEXTAREA|INPUT)$/.test(a.tagName)){ a.blur(); return true; }
+  const m = $("main");
+  if (m && m.scrollTop > 300){ try { m.scrollTo({ top: 0, behavior: "smooth" }); } catch (e) { m.scrollTop = 0; } return true; }
+  return false;
+}
 window.addEventListener("popstate", e => {
   if (ovPending > 0){ ovPending--; e.stopImmediatePropagation(); if (!ovPending) ovFlush(); return; }
   const st = e.state, d = (st && st.ov) || 0;
   if (ovStack.length && d < ovStack.length){ e.stopImmediatePropagation(); const o = ovStack.pop(); try { o.rawClose(); } catch (x) {} return; }
   if (d > ovStack.length){ e.stopImmediatePropagation(); try { history.back(); } catch (x) {} return; }
+  const inCall = typeof call !== "undefined" && call;
+  if (me && cur && !inCall){
+    if (backHold()){ e.stopImmediatePropagation(); try { history.pushState(Object.assign({}, cur), ""); } catch (x) {} return; }
+    if (st && st.guard){
+      e.stopImmediatePropagation();
+      if (cur.t !== "home"){ const h = { t: "home", n: 0 }; try { history.pushState(h, ""); } catch (x) {} show(h); return; }
+      soon("Press back again to exit");
+      setTimeout(() => { if (history.state && history.state.guard){ try { history.pushState({ t: "home", n: 0 }, ""); } catch (x) {} } }, 2200);
+      return;
+    }
+  }
   if (me) show(st && st.t ? st : { t: "home", n: 0 });
 });
 function openPhoto(url){ $("lb-img").src = url; $("lb").classList.remove("hidden"); ovOpen("lb", lbRaw); }
