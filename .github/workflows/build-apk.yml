@@ -101,6 +101,7 @@ jobs:
           package com.circle.test;
 
           import android.view.ViewGroup;
+          import android.webkit.JavascriptInterface;
           import android.webkit.WebView;
           import androidx.activity.OnBackPressedCallback;
           import androidx.swiperefreshlayout.widget.SwipeRefreshLayout;
@@ -108,11 +109,18 @@ jobs:
 
           public class MainActivity extends BridgeActivity {
             private boolean backPatched = false;
+            private volatile boolean atTop = true;
 
             @Override
             public void onStart() {
               super.onStart();
               final WebView webView = getBridge().getWebView();
+
+              /* the page (native-push.js) tells us whether the scrolled area under the finger is at its top */
+              webView.addJavascriptInterface(new Object() {
+                @JavascriptInterface
+                public void setTop(boolean t) { atTop = t; }
+              }, "CircleNative");
 
               if (!backPatched) {
                 backPatched = true;
@@ -138,7 +146,8 @@ jobs:
               swipe.addView(webView, new ViewGroup.LayoutParams(
                   ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.MATCH_PARENT));
               parent.addView(swipe, index, lp);
-              swipe.setOnChildScrollUpCallback((p, c) -> webView.getScrollY() > 0);
+              /* true = the content can still scroll up, so do NOT start a refresh */
+              swipe.setOnChildScrollUpCallback((p, c) -> !atTop || webView.getScrollY() > 0);
               swipe.setOnRefreshListener(() -> {
                 webView.reload();
                 swipe.postDelayed(() -> swipe.setRefreshing(false), 1000);
