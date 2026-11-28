@@ -21,7 +21,7 @@ function stopReels(){
   if (homeObs){ homeObs.disconnect(); homeObs = null; }
   allReelVideos().forEach(v => { try { v.pause(); } catch (e) {} });
   const a = $("app"); if (a) a.classList.remove("rfull");
-  closeReelCm(); closeReelMenu(); if (typeof closeRx === "function") closeRx();
+  closeReelCmRaw(); closeReelMenuRaw(); if (typeof closeRxRaw === "function") closeRxRaw();
 }
 document.addEventListener("visibilitychange", () => {
   if (document.hidden) allReelVideos().forEach(v => { try { v.pause(); } catch (e) {} });
@@ -154,12 +154,14 @@ function reelMenuHtml(){
     <button class="rlm-row" onclick="toggleReelAuto()"><span>Auto-play videos<small>${reelAuto ? "On" : "Off"}: videos ${reelAuto ? "start playing by themselves" : "play only when you tap them"}</small></span><i class="sw ${reelAuto ? "on" : ""}"></i></button>${reelReportRow()}</div>`;
 }
 function openReelMenu(id){
-  closeReelMenu();
+  const old = $("rl-menu"); if (old) old.remove();
   reelMenuId = id != null ? id : currentReelId();
   const d = document.createElement("div"); d.id = "rl-menu"; d.innerHTML = reelMenuHtml();
   document.body.appendChild(d);
+  ovOpen("rmenu", closeReelMenuRaw);
 }
-function closeReelMenu(){ const m = $("rl-menu"); if (m) m.remove(); }
+function closeReelMenuRaw(){ const m = $("rl-menu"); if (m) m.remove(); ovDrop("rmenu"); }
+function closeReelMenu(){ if (!ovClose("rmenu")) closeReelMenuRaw(); }
 function toggleReelAuto(){
   reelAuto = !reelAuto;
   try { localStorage.setItem("circle_reel_auto", reelAuto ? "1" : "0"); } catch (e) {}
@@ -264,9 +266,10 @@ async function deleteReel(id){
 
 /* ---------- comments sheet ---------- */
 let rcmId = null;
-function closeReelCm(){ const s = $("rl-sheet"); if (s) s.remove(); rcmId = null; }
+function closeReelCmRaw(){ const s = $("rl-sheet"); if (s) s.remove(); rcmId = null; ovDrop("rcm"); }
+function closeReelCm(){ if (!ovClose("rcm")) closeReelCmRaw(); }
 async function openReelCm(id){
-  closeReelCm(); rcmId = id;
+  const oldS = $("rl-sheet"); if (oldS) oldS.remove(); rcmId = id;
   const el = document.createElement("div");
   el.id = "rl-sheet";
   el.innerHTML = `<div class="rls-bg" onclick="closeReelCm()"></div><div class="rls">
@@ -274,6 +277,7 @@ async function openReelCm(id){
     <div class="rls-list" id="rls-list"><div class="rl-msg2">Loading…</div></div>
     <div class="rls-f"><input id="rls-in" maxlength="300" placeholder="Add a comment…" autocomplete="off"><button onclick="sendReelCm()">Send</button></div></div>`;
   document.body.appendChild(el);
+  ovOpen("rcm", closeReelCmRaw);
   $("rls-in").addEventListener("keydown", e => { if (e.key === "Enter") sendReelCm(); });
   loadReelCm();
 }

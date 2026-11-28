@@ -174,7 +174,7 @@ let cur = null;
 const TITLES = { home: "Circle", friends: "Friends", reels: "Reels", market: "Marketplace", me: "My profile", profile: "Profile", edit: "Edit profile", saved: "Saved", post: "Post", search: "Search", inbox: "Messages", chat: "Chat", settings: "Settings", compose: "New post", reelnew: "New reel" };
 function show(v, keep){
   cur = v; tab = v.t;
-  closeLb();
+  lbRaw();
   if (typeof stopReels === "function") stopReels();
   if (v.t !== "chat") stopChatPoll();
   $("app").classList.toggle("chatmode", v.t === "chat");
@@ -197,10 +197,36 @@ function show(v, keep){
   else if (v.t === "chat") renderChat(v.id);
   else ({ home: renderHome, friends: renderFriends, reels: renderReels, market: () => renderSoon(v.t), search: renderSearch })[v.t]();
 }
+/* ---- overlays (photo viewer, sheets, menus) get their own history entry so Back closes them first ---- */
+const ovStack = []; let ovPending = 0, ovQueue = [];
+function ovFlush(force){ if (force) ovPending = 0; const q = ovQueue.splice(0); q.forEach(f => { try { f(); } catch (e) {} }); }
+function ovOpen(key, rawClose){
+  if (ovPending > 0){ ovQueue.push(() => ovOpen(key, rawClose)); return; }
+  if (ovStack.some(o => o.key === key)) return;
+  ovStack.push({ key, rawClose });
+  try { history.pushState(Object.assign({}, history.state, { ov: ovStack.length }), ""); } catch (e) {}
+}
+function ovDrop(key){ const i = ovStack.findIndex(o => o.key === key); if (i > -1) ovStack.splice(i, 1); }
+function ovClose(key, cb){
+  const i = ovStack.findIndex(o => o.key === key);
+  if (i < 0) return false;
+  const top = i === ovStack.length - 1;
+  const o = ovStack.splice(i, 1)[0];
+  try { o.rawClose(); } catch (e) {}
+  if (top){
+    ovPending++; if (cb) ovQueue.push(cb);
+    try { history.back(); } catch (e) { ovFlush(true); }
+    setTimeout(() => { if (ovPending > 0) ovFlush(true); }, 500);
+  } else if (cb) cb();
+  return true;
+}
 function navTo(v, replace){
+  if (ovPending > 0){ ovQueue.push(() => navTo(v, replace)); return; }
+  const had = ovStack.length;
+  if (had) ovStack.splice(0).forEach(o => { try { o.rawClose(); } catch (e) {} });
   const n0 = (history.state && history.state.n) || 0;
   v.n = replace ? n0 : n0 + 1;
-  try { history[replace ? "replaceState" : "pushState"](v, ""); } catch (e) {}
+  try { history[(replace || had) ? "replaceState" : "pushState"](v, ""); } catch (e) {}
   show(v);
 }
 function go(t){ navTo({ t }, !!(cur && cur.t === t)); }
@@ -211,9 +237,16 @@ function openPost(id){ navTo({ t: "post", id }); }
 function openChat(id){ navTo({ t: "chat", id }, !!(cur && cur.t === "chat" && cur.id === id)); }
 function goBack(){ if (history.state && history.state.n > 0) history.back(); else navTo({ t: "home" }, true); }
 function rerender(){ if (cur) show(cur, true); }
-window.addEventListener("popstate", e => { if (me) show(e.state && e.state.t ? e.state : { t: "home", n: 0 }); });
-function openPhoto(url){ $("lb-img").src = url; $("lb").classList.remove("hidden"); }
-function closeLb(){ const l = $("lb"); if (l) l.classList.add("hidden"); }
+window.addEventListener("popstate", e => {
+  if (ovPending > 0){ ovPending--; e.stopImmediatePropagation(); if (!ovPending) ovFlush(); return; }
+  const st = e.state, d = (st && st.ov) || 0;
+  if (ovStack.length && d < ovStack.length){ e.stopImmediatePropagation(); const o = ovStack.pop(); try { o.rawClose(); } catch (x) {} return; }
+  if (d > ovStack.length){ e.stopImmediatePropagation(); try { history.back(); } catch (x) {} return; }
+  if (me) show(st && st.t ? st : { t: "home", n: 0 });
+});
+function openPhoto(url){ $("lb-img").src = url; $("lb").classList.remove("hidden"); ovOpen("lb", lbRaw); }
+function lbRaw(){ const l = $("lb"); if (l) l.classList.add("hidden"); ovDrop("lb"); }
+function closeLb(){ if (!ovClose("lb")) lbRaw(); }
 let viewId = null;
 
 /* ---------- home ---------- */
@@ -357,14 +390,16 @@ function rxDown(e, id){
 }
 function rxUp(e, id){ if (rxT){ clearTimeout(rxT); rxT = null; toggleLike(id); } }
 function rxCancel(){ if (rxT){ clearTimeout(rxT); rxT = null; } }
-function closeRx(){ const d = $("rxov"); if (d) d.remove(); }
+function closeRxRaw(){ const d = $("rxov"); if (d) d.remove(); ovDrop("rx"); }
+function closeRx(){ if (!ovClose("rx")) closeRxRaw(); }
 function showRx(id, el){
-  closeRx();
+  const old = $("rxov"); if (old) old.remove();
   const r = el.getBoundingClientRect(), d = document.createElement("div");
   d.id = "rxov"; d.className = "rxov"; d.onclick = closeRx;
   d.innerHTML = `<div class="rxbar" style="bottom:${Math.round(innerHeight - r.top + 8)}px">${Object.entries(REACTS).map(([k, v]) => `<button data-k="${k}" aria-label="${v[1]}">${v[0]}</button>`).join("")}</div>`;
   d.querySelectorAll("button").forEach(b => b.onclick = ev => { ev.stopPropagation(); closeRx(); setReaction(id, b.dataset.k); });
   document.body.appendChild(d);
+  ovOpen("rx", closeRxRaw);
 }
 async function toggleCm(id){
   if (openCm.has(id)){ openCm.delete(id); return drawPost(id); }
@@ -1074,14 +1109,16 @@ function togglePin(id){
 }
 
 /* ---------- bottom sheet + chat menu ---------- */
-function closeSheet(){ const d = $("sheet"); if (d) d.remove(); }
+function closeSheetRaw(){ const d = $("sheet"); if (d) d.remove(); ovDrop("sheet"); }
+function closeSheet(){ if (!ovClose("sheet")) closeSheetRaw(); }
 function sheet(items){
-  closeSheet();
+  const old = $("sheet"); if (old) old.remove();
   const d = document.createElement("div"); d.id = "sheet"; d.className = "sheet";
   d.onclick = e => { if (e.target === d) closeSheet(); };
   d.innerHTML = `<div class="sheet-in">${items.map((it, i) => `<button class="${it.cls || ""}" data-i="${i}">${it.label}</button>`).join("")}<button class="cancel" data-i="-1">Cancel</button></div>`;
-  d.querySelectorAll("button").forEach(b => b.onclick = () => { const i = +b.dataset.i; closeSheet(); if (i >= 0) items[i].fn(); });
+  d.querySelectorAll("button").forEach(b => b.onclick = () => { const i = +b.dataset.i; const fn = i >= 0 ? items[i].fn : null; if (!ovClose("sheet", fn)){ closeSheetRaw(); if (fn) fn(); } });
   document.body.appendChild(d);
+  ovOpen("sheet", closeSheetRaw);
 }
 function chatMenu(){
   const id = chatId;
